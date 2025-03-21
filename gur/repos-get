@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+
+from argparse import ArgumentParser
+from github import Github
+from os.path import join as _path_join
+from os.path import exists as _path_exists
+from pathlib import Path
+
+def _key_path_get(
+  _namespace):
+  return _path_join(
+    Path.home(),
+    f".config/gur/{_namespace}.txt")
+
+def _file_read(
+  _file):
+  try:
+    with open(
+      _file,
+      'r') as _file_handler:
+        _content = _file_handler.read()
+  except FileNotFoundError as exception:
+    sys_exit(
+      f"ERROR: file '{_file}' not found")
+  except Exception as exception:
+    sys_exit(
+      exception)
+  return _content
+
+def _repos_get(
+  _target_namespace,
+  _key_path,
+  _verbose):
+  _repos = []
+  _key = None
+  if ( _path_exists(
+         _key_path) ):
+    _key = _file_read(
+      _key_path)
+  _gh = Github(
+    _key,
+    # os.environ.get(
+    #   "GITHUB_ACCESS_TOKEN"),
+    per_page=100)
+  try:
+    _user = _gh.get_user(
+      _target_namespace)
+    # print(github_user.name)
+    # List all repositories (public and private)
+    for _repo in _user.get_repos():
+      _repos.append(
+        _repo.full_name)
+      # to print as it adds it:
+      # print(gh_repo.full_name)
+  except Exception as e:
+    print(
+      f"An error occurred: {e}")
+  return _repos
+
+def _main():
+  _parser = ArgumentParser()
+  _arguments = [
+    [("target_namespace", ),
+     {"type": str,
+      "help": 'Namespace for which to get the repository of.'}],
+    [("--key", ),
+     {'action': "store",
+      "type": str,
+      "default": "",
+      "help": ('Absolute path of Github '
+               'auth token.')}],
+    [("--verbose", ),
+     {'dest': "verbose",
+      'action': "store_true",
+      "default": False,
+      "help": 'extended output'}]
+  ]
+  for _argument in _arguments:
+      _args, _kwargs = _argument
+      _parser.add_argument(
+        *_args,
+        **_kwargs)
+  _args = _parser.parse_args()
+  if ( _args.key == "" ):
+    _key = _key_path_get(
+      _args.target_namespace)
+  elif ( type(_args.key) == str ):
+    _key = args.key
+  else:
+    raise Exception(
+      "Key must be of type string")
+  _repos_get_args = (
+    _args.target_namespace,
+    _key,
+    _args.verbose
+  )
+  _repos = _repos_get(
+    *_repos_get_args)
+  for _repo in _repos:
+    print(
+      _repo)
+
+if __name__ == "__main__":
+  _main()

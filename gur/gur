@@ -43,6 +43,26 @@ _global_variables() {
   target_command=""
   target_key=""
   target_value=""
+  cache_dir=""
+  http="https://github.com"
+  mirror_description=(
+    "Ur uncensorable DogeOS"
+    "and Life user repository"
+    "and app store package HTTP mirror."
+  )
+  mirror_homepage="${http}/themartiancompany/ur"
+  mirror_topics=(
+    "ur"
+    "universal-recipe"
+    "user-repo"
+    "dogeos-package"
+    "life-package"
+  )
+  mirror_fields=(
+    "description"
+    "homepage"
+    "topics"
+  )
   color=""
   quiet=""
 }
@@ -50,6 +70,10 @@ _global_variables() {
 _requirements() {
   _check_cmd \
     'gh'
+  _check_cmd \
+    'python'
+  _check_cmd \
+    'jq'
 }
 
 _get_conf_dir_path() {
@@ -60,24 +84,293 @@ _get_conf_dir_path() {
     "${_dir}"
 }
 
-_repos_list() {
+_repos_get() {
   local \
-    _namespace="${1}"
+    _namespace="${1}" \
+    _repos_urls=() \
+    _url \
+    _repo \
+    _repos_get_bin \
+    _lib \
+    _msg=()
+  _lib="$( \
+    _get_lib)"
+  _repos_get_bin="${_lib}/gur/repos-get"
+  _msg=(
+    "Retrieving list of"
+    "Ur mirrors for"
+    "'${_namespace}' namespace"
+    "from Github."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _repos_urls=( $( \
+    "${_repos_get_bin}" \
+      "${_namespace}")
+  )
+  for _url in "${_repos_urls[@]}"; do
+    _repo="$( \
+      basename \
+        "${_url}")"
+    if [[ "${_repo}" == *"-ur" ]]; then
+      _repos+=(
+        "${_repo}"
+      )
+    fi
+  done
+  _msg=(
+    "Found '${#_repos[@]}'"
+    "Ur applications"
+    "HTTP mirrors."
+  )
+  _msg_info \
+    "${_msg[*]}"
+}
+
+_description_get() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _description
+  _description="$( \
+    gh \
+      repo \
+      view \
+      "${http}/${_target_namespace}/${_target_repo}" \
+      --json \
+        "description" \
+      --jq \
+        ".description")"
+  echo \
+    "${_description}"
+}
+
+_homepage_get() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _homepage
+  _homepage="$( \
+    gh \
+      repo \
+      view \
+      "${http}/${_target_namespace}/${_target_repo}" \
+      --json \
+        "homepageUrl" \
+      --jq \
+        ".homepageUrl")"
+  echo \
+    "${_homepage}"
+}
+
+_topics_get() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _topics
+  _topics=( $( \
+    gh \
+      repo \
+      view \
+      "${http}/${_target_namespace}/${_target_repo}" \
+      --json \
+        "repositoryTopics" \
+      --jq \
+        ".repositoryTopics.[].name" 2>/dev/null)
+  )
+  echo \
+    "${_topics[@]}"
+}
+
+_description_set() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _description="${3}"
   gh \
-    api \
-    "users/:${_namespace}/repos"
+    repo \
+    edit \
+    "${_target_namespace}/${_target_repo}" \
+    -d \
+      "${_description}"
+}
+
+_homepage_set() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _homepage="${3}"
+  gh \
+    repo \
+    edit \
+    "${_target_namespace}/${_target_repo}" \
+    -h \
+      "${_homepage}"
+}
+
+_topic_set() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _topic="${3}"
+  gh \
+    repo \
+    edit \
+    "${_target_namespace}/${_target_repo}" \
+    --add-topic \
+      "${_topic}"
+}
+
+_mirror_description_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _description \
+    _msg=()
+  _msg=(
+    "Checking"
+    "'${_target_namespace}/${_target_repo}'"
+    "description."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _description="$( \
+    _description_get)"
+  if [[ "${_description}" != "${mirror_description[*]}" ]]; then
+    _description_set \
+      "${mirror_description[*]}"
+  fi
+}
+
+
+_mirror_homepage_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _homepage
+  _msg=(
+    "Checking"
+    "'${_target_namespace}/${_target_repo}'"
+    "homepage."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _homepage="$( \
+    _homepage_get)"
+  if [[ "${_homepage}" != "${mirror_homepage}" ]]; then
+    _homepage_set \
+      "${_target_namespace}" \
+      "${_target_repo}" \
+      "${mirror_homepage}"
+  fi
+}
+
+_topics_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _topics=() \
+    _target_topics=()
+  _msg=(
+    "Checking"
+    "'${_target_namespace}/${_target_repo}'"
+    "topics."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _topics=( $( \
+    _topics_get \
+      "${_target_namespace}" \
+      "${_target_repo}")
+  )
+  _msg=(
+    "Found no topics on"
+    "mirror '${_target_repo}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  for _topic in "${mirror_topics[@]}"; do
+    if [[  " ${_topics[*]} " != *" ${_topic} "* ]]; then
+      _msg=(
+        "Missing '${_topic}'."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _topic_set \
+        "${_target_namespace}" \
+        "${_target_repo}" \
+        "${_topic}"
+    fi
+  done
 }
 
 _gur() {
   local \
-    _target_command="${1}" \
-    _target_key="${2}" \
-    _target_value="${3}" \
-    _namespace="${4}"
+    _target_namespace="${1}" \
+    _target_command="${2}" \
+    _target_key="${3}" \
+    _target_value="${4}" \
+    _repos=() \
+    _target_field \
+    _target_repo
   shift \
     4
-  if [[ "${_target_command}" == "list" ]]; then
+  if [[ "${_target_command}" == "get" ]]; then
+    if [[ " ${_target_key} " == "" ]]; then
+      _msg_error \
+        "A field must be provided." \
+        1
+    fi
     if [[ "${_target_key}" == "repos" ]]; then
+      _repos_list \
+        "${_target_namespace}"
+      echo \
+        "${_repos[@]}"
+    elif [[ " ${_target_value} " == "" ]]; then
+      _msg_error \
+        "A repository must be provided." \
+        1
+    fi
+    if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
+      _target_field="${_target_key}"
+      _target_repo="${_target_value}-ur"
+      "_${_target_field}_get" \
+        "${_target_namespace}" \
+        "${_target_repo}"
+    else
+      _msg_error \
+        "Unknown field '${_target_key}'." \
+        1
+    fi
+  elif [[ "${_target_command}" == "check" ]]; then
+    if [[ "${_target_value}" != "" ]]; then
+      _target_repo="${_target_value}-ur"
+      _repos+=(
+        "${_target_repo}"
+      )
+    elif [[ "${_target_value}" == "" ]]; then
+      _repos_list \
+        "${_target_namespace}"
+    fi
+    if [[ " ${_target_key} " == "" ]]; then
+      for _target_repo in "${_repos[@]}"; do
+        for _field in "${mirror_fields[@]}"; do
+          "${_field}_check" \
+            "${_target_namespace}" \
+            "${_target_repo}"
+        done
+      done
+    elif [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
+      _target_field="${_target_key}"
+      for _target_repo in "${_repos[@]}"; do
+        "_${_target_field}_check" \
+          "${_target_namespace}" \
+          "${_target_repo}"
+      done
+    else
+      _msg_error \
+        "Unknown field '${_target_key}'." \
+        1
     fi
   fi
 }
@@ -143,13 +436,24 @@ Usage:
         <value>
 
   commands:
-    list
-      <value>
+    get                     Reads the value for the
+      <key>                 selected key.
+        (<package>)
+    check                   Checks whether the selected
+      <key>                 key (or all if none) has been
+        (<package>)         correctly set for package mirror.
 
   keys:
     repos                   List all Ur repos in the
                             target namespace.
+    description             Description of mirror repository.
+    homepage                Homepage of a mirror repository.
+    topics                  Topics of a mirror repository.
 
+  values:
+    package_name            An Ur package name (mirrors
+                            have same name with just the
+                            extra '-ur' suffix).
 
   options:
      -N <namespace>         Target namespace for the Ur
@@ -244,11 +548,13 @@ if (( $# < 2 )); then
 fi
 target_command="${1}"
 target_key="${2}"
-target_value="${3}"
-
+if (( 2 < $# )); then
+  target_value="${3}"
+fi
 _set_overrides
 _show_config
 app_opts=(
+  "${target_namespace}"
   "${target_command}"
   "${target_key}"
   "${target_value}"

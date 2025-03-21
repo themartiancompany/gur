@@ -42,7 +42,17 @@ install: install-scripts install-doc install-man
 
 install-scripts:
 
-	install -vDm 755 "$(_PROJECT)/$(_PROJECT)" "$(BIN_DIR)/$(_PROJECT)"
+	install \
+	  -vDm755 \
+	  "$(_PROJECT)/$(_PROJECT)" \
+	  "$(BIN_DIR)/$(_PROJECT)"
+	install \
+	  -vdm755 \
+	  "$(LIB_DIR)"
+	install \
+	  -vDm755 \
+	  "$(_PROJECT)/repos-get" \
+	  "$(LIB_DIR)/repos-get"
 
 install-doc:
 
@@ -56,9 +66,5 @@ install-man:
 	rst2man \
 	  "man/$(_PROJECT).1.rst" \
 	  "$(MAN_DIR)/man1/$(_PROJECT).1"
-	rst2man \
-	  "man/mkseed.1.rst" \
-	  "$(MAN_DIR)/man1/mkseed.1"
-
 
 .PHONY: check install install-doc install-man install-scripts shellcheck

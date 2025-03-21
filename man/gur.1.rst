@@ -22,63 +22,61 @@
 
 
 =====
-evmfs
+gur
 =====
 
--------------------------------------
-Ethereum Virtual Machine File System
--------------------------------------
-:Version: evmfs |version|
+---------------------------------------
+Ur Github HTTP mirrors management tool
+---------------------------------------
+:Version: gur |version|
 :Manual section: 1
 
 Synopsis
 ========
 
-evmfs *[options]* *command* *[files]*
+gur *[options]* *command* *key* *value*
 
 Description
 ===========
 
-evmfs is the reference implementation of the
-Ethereum Virtual Machine File System (EVMFS),
-a distributed, undeletable, uncensorable,
-network-indipendent file system running
-on Ethereum Virtual Machine (EVM) compatible
-blockchain networks.
+Retrieves information about public or
+private Ur mirror and checks whether they
+are conformant to the format.
 
 Commands
 =========
 
-* get
-* publish
+* get                   Reads the value for the selected key.  
+    *key*
+      (*package*)
+
+* check                 Checks whether the selected key (or
+    *key*               all if none) has been correctly set for
+      (*package*)       the package mirror.
+
+Keys
+==========
+
+* repos                 Returns all Ur repos in the
+                        target namespace.
+* description           Description of mirror repository.
+* homepage              Homepage of a mirror repository.
+* topics                Topics of a mirror repository.
+
+Values
+========
+
+* package_name          An Ur package name (mirrors
+                        have same name with just the
+                        extra *-ur* suffix).
 
 Options
 ========
 
--o output_file          Name of the file in which to save
-                        the downloaded resource.
--A fs_address           Address of the EVM file system
-                        on the network.
--B ll_address           Address of the Length Lock contract
-                        on the network.
--V fs_version           Version of the target EVM file
-                        system.
--u                      Whether to retrieve file system
-                        address from user directory or custom
-                        deployment.
--d deployments_dir      Contracts deployments directory.
--N wallet_name>         Wallet name.
--w wallet_path>         Wallet path.
--p wallet_password>     Wallet password.
--s wallet_seed          Wallet seed path.
--n network              EVM network name (${_networks[*]}).
--k api_key              Etherscan-like service key.
--m call_method          Can be standalone or 'bulk'.
--r retries_max          Maximum number of retries before
-                        failing.
--P tasks_parallel       Tasks to perform in parallel.
+-N namespace            Target namespace for the Ur
+                        repositories.
 -W cache_dir            Location where to temporary store
-                        the downloaded resource chunks.
+                        resources.
 
 -h                      This message.
 -c                      Enable color output
@@ -93,8 +91,7 @@ Copyright Pellegrino Prevete. AGPL-3.0.
 See also
 ========
 
-* evmfs -h
-* evmfs-get
-* evmfs-publish
+* ur
+* fur
 
 .. include:: variables.rst
