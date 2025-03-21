@@ -29,10 +29,14 @@ repositories censorable Github HTTP mirrors.
 The program depends on the
 [Crash Bash](
   https://github.com/themartiancompany/crash-bash)
-library and
+library,
 the
-[Github command-line utility](
-  https://github.com/cli/cli).
+[GitHub command-line utility](
+  https://github.com/cli/cli)
+and the
+[PyGitHub](
+  https://github.com/PyGithub/PyGithub)
+Python library.
 
 ## Installation
 
@@ -43,6 +47,8 @@ can be installed from source using GNU Make.
 make \
   install
 ```
+
+#### Valid when I wake up later today
 
 The Gur has been officially published on the
 the uncensorable
