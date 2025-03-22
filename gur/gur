@@ -322,7 +322,7 @@ _gur() {
         1
     fi
     if [[ "${_target_key}" == "repos" ]]; then
-      _repos_list \
+      _repos_get \
         "${_target_namespace}"
       echo \
         "${_repos[@]}"
@@ -331,16 +331,18 @@ _gur() {
         "A repository must be provided." \
         1
     fi
-    if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
-      _target_field="${_target_key}"
-      _target_repo="${_target_value}-ur"
-      "_${_target_field}_get" \
-        "${_target_namespace}" \
-        "${_target_repo}"
-    else
-      _msg_error \
-        "Unknown field '${_target_key}'." \
-        1
+    if [[ "${_target_key}" != "repos" ]]; then
+      if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
+        _target_field="${_target_key}"
+        _target_repo="${_target_value}-ur"
+        "_${_target_field}_get" \
+          "${_target_namespace}" \
+          "${_target_repo}"
+      else
+        _msg_error \
+          "Unknown field '${_target_key}'." \
+          1
+      fi
     fi
   elif [[ "${_target_command}" == "check" ]]; then
     if [[ "${_target_value}" != "" ]]; then
@@ -349,10 +351,21 @@ _gur() {
         "${_target_repo}"
       )
     elif [[ "${_target_value}" == "" ]]; then
-      _repos_list \
+      _msg=(
+        "No repository selected, global check"
+        "triggered."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _repos_get \
         "${_target_namespace}"
     fi
-    if [[ " ${_target_key} " == "" ]]; then
+    if [[ "${_target_key}" == "" ]]; then
+      _msg=(
+        "No field selected, checking all."
+      )
+      _msg_info \
+        "${_msg[*]}"
       for _target_repo in "${_repos[@]}"; do
         for _field in "${mirror_fields[@]}"; do
           "${_field}_check" \
@@ -538,16 +551,10 @@ if (( $# < 1 )); then
   _usage \
     1
 fi
-if (( $# < 2 )); then
-  _msg_error \
-    "No key given." \
-    0
-  _set_overrides
-  _usage \
-    1
-fi
 target_command="${1}"
-target_key="${2}"
+if (( 1 < $# )); then
+  target_key="${2}"
+fi
 if (( 2 < $# )); then
   target_value="${3}"
 fi
