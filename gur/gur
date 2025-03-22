@@ -125,6 +125,19 @@ _repos_get() {
   )
   _msg_info \
     "${_msg[*]}"
+  _msg=(
+    "Saving list locally"
+    "because Github API limit"
+    "is ridiculous for a company"
+    "which gives people free computers"
+    "to build stuff."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  printf \
+    '%s\n' \
+    "${_repos[@]}" > \
+    "${_cache_dir}/mirrors.db"
 }
 
 _description_get() {
@@ -307,14 +320,15 @@ _topics_check() {
 _gur() {
   local \
     _target_namespace="${1}" \
-    _target_command="${2}" \
-    _target_key="${3}" \
-    _target_value="${4}" \
+    _cache_dir="${2}" \
+    _target_command="${3}" \
+    _target_key="${4}" \
+    _target_value="${5}" \
     _repos=() \
     _target_field \
     _target_repo
   shift \
-    4
+    5
   if [[ "${_target_command}" == "get" ]]; then
     if [[ " ${_target_key} " == "" ]]; then
       _msg_error \
@@ -357,8 +371,22 @@ _gur() {
       )
       _msg_info \
         "${_msg[*]}"
-      _repos_get \
-        "${_target_namespace}"
+      if [[ ! -e "${_cache}/mirrors" ]]; then
+        _repos_get \
+          "${_target_namespace}"
+      elif [[ -e "${_cache_dir}/mirrors.db" ]]; then
+        _msg=(
+          "Using local mirrors list"
+          "because Github has a miserable"
+          "API limit."
+        )
+        _msg_info \
+          "${_msg[*]}"
+        _repos+=( $( \
+          cat \
+            "${_cache_dir}/mirrors.db"
+        )
+      fi
     fi
     if [[ "${_target_key}" == "" ]]; then
       _msg=(
@@ -368,7 +396,7 @@ _gur() {
         "${_msg[*]}"
       for _target_repo in "${_repos[@]}"; do
         for _field in "${mirror_fields[@]}"; do
-          "${_field}_check" \
+          "_${_field}_check" \
             "${_target_namespace}" \
             "${_target_repo}"
         done
@@ -562,6 +590,7 @@ _set_overrides
 _show_config
 app_opts=(
   "${target_namespace}"
+  "${cache_dir}"
   "${target_command}"
   "${target_key}"
   "${target_value}"
