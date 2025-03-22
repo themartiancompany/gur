@@ -234,7 +234,7 @@ _topic_set() {
       "${_topic}"
 }
 
-_mirror_description_check() {
+_description_check() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
@@ -248,15 +248,19 @@ _mirror_description_check() {
   _msg_info \
     "${_msg[*]}"
   _description="$( \
-    _description_get)"
+    _description_get \
+      "${_target_namespace}" \
+      "${_target_repo}")"
   if [[ "${_description}" != "${mirror_description[*]}" ]]; then
     _description_set \
+      "${_target_namespace}" \
+      "${_target_repo}" \
       "${mirror_description[*]}"
   fi
 }
 
 
-_mirror_homepage_check() {
+_homepage_check() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
@@ -269,7 +273,9 @@ _mirror_homepage_check() {
   _msg_info \
     "${_msg[*]}"
   _homepage="$( \
-    _homepage_get)"
+    _homepage_get \
+      "${_target_namespace}" \
+      "${_target_repo}")"
   if [[ "${_homepage}" != "${mirror_homepage}" ]]; then
     _homepage_set \
       "${_target_namespace}" \
@@ -296,12 +302,14 @@ _topics_check() {
       "${_target_namespace}" \
       "${_target_repo}")
   )
-  _msg=(
-    "Found no topics on"
-    "mirror '${_target_repo}'."
-  )
-  _msg_info \
-    "${_msg[*]}"
+  if [[ "${_topics[*]}" == "" ]]; then
+    _msg=(
+      "Found no topics on"
+      "mirror '${_target_repo}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
   for _topic in "${mirror_topics[@]}"; do
     if [[  " ${_topics[*]} " != *" ${_topic} "* ]]; then
       _msg=(
@@ -371,7 +379,7 @@ _gur() {
       )
       _msg_info \
         "${_msg[*]}"
-      if [[ ! -e "${_cache}/mirrors" ]]; then
+      if [[ ! -e "${_cache_dir}/mirrors.db" ]]; then
         _repos_get \
           "${_target_namespace}"
       elif [[ -e "${_cache_dir}/mirrors.db" ]]; then
@@ -384,7 +392,7 @@ _gur() {
           "${_msg[*]}"
         _repos+=( $( \
           cat \
-            "${_cache_dir}/mirrors.db"
+            "${_cache_dir}/mirrors.db")
         )
       fi
     fi
@@ -395,11 +403,22 @@ _gur() {
       _msg_info \
         "${_msg[*]}"
       for _target_repo in "${_repos[@]}"; do
-        for _field in "${mirror_fields[@]}"; do
-          "_${_field}_check" \
-            "${_target_namespace}" \
-            "${_target_repo}"
-        done
+        _checked="$( \
+          cat \
+            "${_cache_dir}/checked.db" | \
+            grep \
+              "${_target_repo}" || \
+            true)"
+        if [[ "${_checked}" == "" ]]; then
+          for _field in "${mirror_fields[@]}"; do
+            "_${_field}_check" \
+              "${_target_namespace}" \
+              "${_target_repo}"
+          done
+          echo \
+            "${_target_repo}" >> \
+            "${_cache_dir}/checked.db"
+        fi
       done
     elif [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
       _target_field="${_target_key}"
