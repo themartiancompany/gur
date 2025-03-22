@@ -410,6 +410,13 @@ _gur() {
               "${_target_repo}" || \
             true)"
         if [[ "${_checked}" == "" ]]; then
+          _msg=(
+            "Mirror for package"
+            "'${_target_repo}'"
+            "unchecked, checking now."
+          )
+          _msg_info \
+            "${_msg[*]}"
           for _field in "${mirror_fields[@]}"; do
             "_${_field}_check" \
               "${_target_namespace}" \
@@ -418,6 +425,14 @@ _gur() {
           echo \
             "${_target_repo}" >> \
             "${_cache_dir}/checked.db"
+        elif [[ "${_checked}" != "" ]]; then
+          _msg=(
+            "Mirror for package"
+            "'${_target_repo}'"
+            "already checked, skipping."
+          )
+          _msg_info \
+            "${_msg[*]}"
         fi
       done
     elif [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
