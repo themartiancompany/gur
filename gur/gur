@@ -53,6 +53,7 @@ _global_variables() {
   mirror_homepage="${http}/themartiancompany/ur"
   mirror_topics=(
     "ur"
+    "ur-app-store"
     "universal-recipe"
     "user-repo"
     "dogeos-package"
