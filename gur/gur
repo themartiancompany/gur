@@ -337,6 +337,11 @@ _project_id_get() {
     _token_private \
     _token_dir \
     _token
+  if [[ "${quiet}" == "n" ]]; then
+    _curl_opts+=(
+      -s
+    )
+  fi
   _token_dir="${HOME}/.config/gitlab.com"
   _token_private="${_token_dir}/default.txt"
   if [[ ! -e "${_token_private}" ]]; then
