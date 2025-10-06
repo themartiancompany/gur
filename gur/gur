@@ -63,12 +63,15 @@ _global_variables() {
     "description"
     "homepage"
     "topics"
+    "project_id"
   )
   color=""
   quiet=""
 }
 
 _requirements() {
+  _check_cmd \
+    "curl"
   _check_cmd \
     'gh'
   _check_cmd \
@@ -326,6 +329,46 @@ _topics_check() {
   done
 }
 
+_project_id_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _curl_opts=() \
+    _token_private \
+    _token_dir \
+    _token
+  _token_dir="${HOME}/.config/gitlab.com"
+  _token_private="${_token_dir}/default.txt"
+  if [[ ! -e "${_token_private}" ]]; then
+    mkdir \
+      -p \
+      "${_token_dir}"
+    chmod \
+      700 \
+      "${_token_dir}"
+    _msg=(
+      "Missing private token at"
+      "'${_token_private}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _token="PRIVATE-TOKEN: $( \
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    -XGET
+    --header
+      "${_token}"
+  )
+  curl \
+    "${_curl_opts[@]}" \
+    "https://gitlab.com/api/v4/projects/${_namespace}%2F${_repo}-ur" | \
+    jq \
+      '.id'
+}
+
 _gur() {
   local \
     _target_namespace="${1}" \
@@ -502,7 +545,7 @@ _usage() {
       -d '' \
       _usage_text << \
         ENDUSAGETEXT || true
-Ur Github HTTP mirrors management tool
+Ur Github/Gitlab HTTP mirrors management tool
 
 Usage:
   ${app_name}
@@ -525,6 +568,7 @@ Usage:
     description             Description of mirror repository.
     homepage                Homepage of a mirror repository.
     topics                  Topics of a mirror repository.
+    project_id              Project ID for a Gitlab repository.
 
   values:
     package_name            An Ur package name (mirrors
