@@ -400,7 +400,7 @@ _gur() {
     if [[ "${_target_key}" != "repos" ]]; then
       if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
         _target_field="${_target_key}"
-        _target_repo="${_target_value}-ur"
+        _target_repo="${_target_value}"
         "_${_target_field}_get" \
           "${_target_namespace}" \
           "${_target_repo}"
