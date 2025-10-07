@@ -78,6 +78,8 @@ _requirements() {
     'python'
   _check_cmd \
     'jq'
+  _check_cmd \
+    "unzip"
 }
 
 _get_conf_dir_path() {
@@ -337,11 +339,6 @@ _project_id_get() {
     _token_private \
     _token_dir \
     _token
-  if [[ "${quiet}" == "n" ]]; then
-    _curl_opts+=(
-      -s
-    )
-  fi
   _token_dir="${HOME}/.config/gitlab.com"
   _token_private="${_token_dir}/default.txt"
   if [[ ! -e "${_token_private}" ]]; then
@@ -366,12 +363,89 @@ _project_id_get() {
     -XGET
     --header
       "${_token}"
+    --silent
   )
   curl \
     "${_curl_opts[@]}" \
     "https://gitlab.com/api/v4/projects/${_namespace}%2F${_repo}-ur" | \
     jq \
       '.id'
+}
+
+_artifacts_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _project_id \
+    _gl_dl_opts=() \
+    _api \
+    _url \
+    _job_latest
+  if [[ "${quiet}" == "n" ]]; then
+    _gl_dl_opts+=(
+      -v
+    )
+  fi
+  _project_id="$( \
+    _project_id_get \
+      "${_namespace}" \
+      "${_repo}")"
+  _job_latest="$( \
+    _job_latest_get \
+      "${_project_id}")"
+  _msg_info \
+    "Found job id '${_job_latest}'."
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/projects/${_project_id}/jobs/${_job_latest}"
+  _gl_dl_opts+=(
+    -m
+      ""
+    -o
+      "${_cache_dir}/artifacts.zip"
+    -f
+      "zip"
+  )
+  gl-dl \
+    "${_gl_dl_opts[@]}" \
+    "${_url}"
+  unzip \
+    "${_cache_dir}/artifacts.zip"
+}
+
+_job_latest_get() {
+  local \
+    _project_id="${1}" \
+    _jobs=()
+  _jobs_get \
+    "${_project_id}"
+  echo \
+    "${_jobs[0]}"
+}
+
+_jobs_get() {
+  local \
+    _project_id="${1}" \
+    _gl_dl_opts=()
+  if [[ "${quiet}" == "n" ]]; then
+    gl_dl_opts+=(
+      -v
+    )
+  fi
+  _gl_dl_opts+=(
+    -o
+      "${_cache_dir}/jobs" 
+  )
+  gl-dl \
+    "${_gl_dl_opts[@]}" \
+    "https://gitlab.com/api/v4/projects/${_project_id}/jobs"
+  _jobs+=( $( \
+    cat \
+      "${_cache_dir}/jobs" | \
+      jq \
+        '.[]' | \
+        jq \
+          '.id')
+  )
 }
 
 _gur() {
@@ -392,7 +466,11 @@ _gur() {
         "A field must be provided." \
         1
     fi
-    if [[ "${_target_key}" == "repos" ]]; then
+    if [[ "${_target_key}" == "artifacts" ]]; then
+      _artifacts_get \
+        "${_target_namespace}" \
+        "${_target_value}"
+    elif [[ "${_target_key}" == "repos" ]]; then
       _repos_get \
         "${_target_namespace}"
       echo \
@@ -574,6 +652,7 @@ Usage:
     homepage                Homepage of a mirror repository.
     topics                  Topics of a mirror repository.
     project_id              Project ID for a Gitlab repository.
+    artifact                Latest artifact for a Gitlab repository.
 
   values:
     package_name            An Ur package name (mirrors
