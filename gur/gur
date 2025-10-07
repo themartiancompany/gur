@@ -399,8 +399,6 @@ _artifacts_get() {
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/jobs/${_job_latest}/artifacts"
   _gl_dl_opts+=(
-    -m
-      ""
     -o
       "${_cache_dir}/artifacts.zip"
     -f
@@ -672,7 +670,7 @@ Usage:
     homepage                Homepage of a mirror repository.
     topics                  Topics of a mirror repository.
     project_id              Project ID for a Gitlab repository.
-    artifact                Latest artifact for a Gitlab repository.
+    artifacts               Latest artifact for a Gitlab repository.
 
   values:
     package_name            An Ur package name (mirrors
