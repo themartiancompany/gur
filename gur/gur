@@ -64,6 +64,7 @@ _global_variables() {
     "homepage"
     "topics"
     "project_id"
+    "artifacts"
   )
   color=""
   quiet=""
@@ -380,7 +381,8 @@ _artifacts_get() {
     _gl_dl_opts=() \
     _api \
     _url \
-    _job_latest
+    _job_latest \
+    _old_pwd
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
@@ -390,13 +392,12 @@ _artifacts_get() {
     _project_id_get \
       "${_namespace}" \
       "${_repo}")"
-  _job_latest="$( \
-    _job_latest_get \
-      "${_project_id}")"
+  _job_latest_get \
+    "${_project_id}"
   _msg_info \
     "Found job id '${_job_latest}'."
   _api="https://gitlab.com/api/v4"
-  _url="${_api}/projects/${_project_id}/jobs/${_job_latest}"
+  _url="${_api}/projects/${_project_id}/jobs/${_job_latest}/artifacts"
   _gl_dl_opts+=(
     -m
       ""
@@ -408,8 +409,30 @@ _artifacts_get() {
   gl-dl \
     "${_gl_dl_opts[@]}" \
     "${_url}"
+  mkdir \
+    -p \
+    "${_cache_dir}/artifacts"
+  _old_pwd=${PWD}
+  cd \
+    "${_cache_dir}/artifacts"
   unzip \
+    -qq \
     "${_cache_dir}/artifacts.zip"
+  rm \
+    "${_cache_dir}/artifacts.zip"
+  for _artifact \
+    in "./"*; do
+    echo \
+      "$(basename \
+           "${_artifact}")"
+    mv \
+      "${_artifact}" \
+      "${_old_pwd}"
+  done
+  cd \
+    "${_old_pwd}"
+  rmdir \
+    "${_cache_dir}/artifacts"
 }
 
 _job_latest_get() {
@@ -418,8 +441,7 @@ _job_latest_get() {
     _jobs=()
   _jobs_get \
     "${_project_id}"
-  echo \
-    "${_jobs[0]}"
+  _job_latest="${_jobs[0]}"
 }
 
 _jobs_get() {
@@ -433,7 +455,7 @@ _jobs_get() {
   fi
   _gl_dl_opts+=(
     -o
-      "${_cache_dir}/jobs" 
+      "${_cache_dir}/jobs.json" 
   )
   gl-dl \
     "${_gl_dl_opts[@]}" \
@@ -446,6 +468,8 @@ _jobs_get() {
         jq \
           '.id')
   )
+  rm \
+    "${_cache_dir}/jobs.json"
 }
 
 _gur() {
@@ -466,11 +490,7 @@ _gur() {
         "A field must be provided." \
         1
     fi
-    if [[ "${_target_key}" == "artifacts" ]]; then
-      _artifacts_get \
-        "${_target_namespace}" \
-        "${_target_value}"
-    elif [[ "${_target_key}" == "repos" ]]; then
+    if [[ "${_target_key}" == "repos" ]]; then
       _repos_get \
         "${_target_namespace}"
       echo \
