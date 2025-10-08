@@ -361,10 +361,10 @@ _project_id_get() {
     cat \
       "${_token_private}")"
   _curl_opts+=(
+    --silent
     -XGET
     --header
       "${_token}"
-    --silent
   )
   curl \
     "${_curl_opts[@]}" \
