@@ -433,19 +433,73 @@ _artifacts_get() {
     "${_cache_dir}/artifacts"
 }
 
+_pipeline_latest_get() {
+  local \
+    _project_id="${1}" \
+    _pipelines=()
+  _pipelines_get \
+    "${_project_id}"
+}
+
 _job_latest_get() {
   local \
     _project_id="${1}" \
     _jobs=()
   _jobs_get \
     "${_project_id}"
-  _job_latest="${_jobs[0]}"
+  _job_latest="$( \
+    IFS=$'\n'
+    echo \
+      "${_jobs[*]}" | \
+      sort \
+        -nr | \
+          head \
+            -n \
+              1)"
+  # _job_latest="${_jobs[0]}"
 }
+
+_pipelines_get() {
+  local \
+    _project_id="${1}" \
+    _gl_dl_opts=() \
+    _msg=()
+  if [[ "${quiet}" == "n" ]]; then
+    gl_dl_opts+=(
+      -v
+    )
+  fi
+  _gl_dl_opts+=(
+    -o
+      "${_cache_dir}/pipelines.json" 
+  )
+  gl-dl \
+    "${_gl_dl_opts[@]}" \
+    "https://gitlab.com/api/v4/projects/${_project_id}/pipelines?per_page=20&sort=desc"
+  _jobs+=( $( \
+    cat \
+      "${_cache_dir}/pipelines.json" | \
+      jq \
+        '.[]' | \
+        jq \
+          '.id')
+  )
+  _msg=(
+    "Found '${#_jobs}'"
+    "job for project '${_project_id}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  rm \
+    "${_cache_dir}/jobs.json"
+}
+
 
 _jobs_get() {
   local \
     _project_id="${1}" \
-    _gl_dl_opts=()
+    _gl_dl_opts=() \
+    _msg=()
   if [[ "${quiet}" == "n" ]]; then
     gl_dl_opts+=(
       -v
@@ -457,15 +511,21 @@ _jobs_get() {
   )
   gl-dl \
     "${_gl_dl_opts[@]}" \
-    "https://gitlab.com/api/v4/projects/${_project_id}/jobs"
+    "https://gitlab.com/api/v4/projects/${_project_id}/jobs?per_page=20&id_after=300"
   _jobs+=( $( \
     cat \
-      "${_cache_dir}/jobs" | \
+      "${_cache_dir}/jobs.json" | \
       jq \
         '.[]' | \
         jq \
           '.id')
   )
+  _msg=(
+    "Found '${#_jobs}'"
+    "job for project '${_project_id}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
   rm \
     "${_cache_dir}/jobs.json"
 }
