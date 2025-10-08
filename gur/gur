@@ -65,6 +65,7 @@ _global_variables() {
     "topics"
     "project_id"
     "artifacts"
+    "log"
   )
   color=""
   quiet=""
@@ -494,6 +495,61 @@ _pipelines_get() {
     "${_cache_dir}/jobs.json"
 }
 
+_log_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _project_id \
+    _msg=()
+  _project_id="$( \
+    _project_id_get \
+      "${_namespace}" \
+      "${_repo}")"
+  _job_latest_get \
+    "${_project_id}"
+  _msg=(
+    "Found job id '${_job_latest}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _gitlab_log_get \
+    "${_namespace}" \
+    "${_repo}" \
+    "${_job_latest}"
+}
+
+_gitlab_log_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _job_id="${3}" \
+    _project_id \
+    _gl_dl_opts=() \
+    _api \
+    _url \
+    _job_latest \
+    _old_pwd
+  if [[ "${quiet}" == "n" ]]; then
+    _gl_dl_opts+=(
+      -v
+    )
+  fi
+  _project_id="$( \
+    _project_id_get \
+      "${_namespace}" \
+      "${_repo}")"
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/projects/${_project_id}/jobs/${_job_id}/trace"
+  _gl_dl_opts+=(
+    -o
+      "${_cache_dir}/trace.log"
+  )
+  gl-dl \
+    "${_gl_dl_opts[@]}" \
+    "${_url}"
+  cat \
+    "${_cache_dir}/trace.log"
+}
 
 _jobs_get() {
   local \
@@ -730,7 +786,8 @@ Usage:
     homepage                Homepage of a mirror repository.
     topics                  Topics of a mirror repository.
     project_id              Project ID for a Gitlab repository.
-    artifacts               Latest artifact for a Gitlab repository.
+    artifacts               Latest artifact for an Ur Gitlab mirror.
+    log                     Latest log for an Ur Gitlab mirror.
 
   values:
     package_name            An Ur package name (mirrors
