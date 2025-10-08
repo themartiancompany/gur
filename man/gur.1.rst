@@ -39,9 +39,15 @@ gur *[options]* *command* *key* *value*
 Description
 ===========
 
-Retrieves information about public or
-private Ur mirror and checks whether they
+Performs various operation on Ur mirrors.
+
+For Github, it retrieves
+information about public or private
+repos and checks whether they
 are conformant to the format.
+
+For Gitlab, it retrieve artifacts
+and reads project IDs.
 
 Commands
 =========
@@ -62,6 +68,8 @@ Keys
 * description           Description of mirror repository.
 * homepage              Homepage of a mirror repository.
 * topics                Topics of a mirror repository.
+* project_id            Project ID for a gitlab.com repository.
+* 
 
 Values
 ========
