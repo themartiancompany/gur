@@ -63,13 +63,14 @@ Commands
 Keys
 ==========
 
-* repos                 Returns all Ur repos in the
-                        target namespace.
+* repos                 Returns all Ur repos in the target namespace.
 * description           Description of mirror repository.
 * homepage              Homepage of a mirror repository.
 * topics                Topics of a mirror repository.
 * project_id            Project ID for a gitlab.com repository.
-* 
+* artifacts             Latest artifact for an Ur Gitlab mirror.
+* releases              Get releases for an Ur Gitlab mirror.
+* release               Downloads latest release assets for an Ur Gitlab mirror.
 
 Values
 ========

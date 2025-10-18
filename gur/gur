@@ -66,6 +66,8 @@ _global_variables() {
     "project_id"
     "artifacts"
     "log"
+    "releases"
+    "release"
   )
   color=""
   quiet=""
@@ -495,6 +497,87 @@ _pipelines_get() {
     "${_cache_dir}/jobs.json"
 }
 
+_release_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _project_id \
+    _gl_dl_opts=() \
+    _api \
+    _url \
+    _job_latest \
+    _output_file
+  if [[ "${quiet}" == "n" ]]; then
+    _gl_dl_opts+=(
+      -v
+    )
+  fi
+  _releases_retrieve \
+    "${_namespace}" \
+    "${_repo}"
+  _urls=( $( \
+    cat \
+      "${_cache_dir}/releases.json" | \
+      jq \
+        '.[0].assets.links.[]' | \
+        jq \
+          --raw-output \
+          '.direct_asset_url')
+  )
+  for _url in "${_urls[@]}"; do
+    _file="$( \
+      basename \
+        "${_url}")"
+    _output_file="$(pwd)/${_file}"
+    gl-dl \
+      "${_gl_dl_opts[@]}" \
+      -o \
+        "${_output_file}"
+      "${_url}"
+  done
+}
+
+_releases_get() {
+    _namespace="${1}" \
+    _repo="${2}"
+  _releases_retrieve \
+    "${_namespace}" \
+    "${_repo}"
+  cat \
+    "${_cache_dir}/releases.json" | \
+  jq
+}
+
+_releases_retrieve() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _project_id \
+    _gl_dl_opts=() \
+    _api \
+    _url \
+    _job_latest \
+    _old_pwd
+  if [[ "${quiet}" == "n" ]]; then
+    _gl_dl_opts+=(
+      -v
+    )
+  fi
+  _project_id="$( \
+    _project_id_get \
+      "${_namespace}" \
+      "${_repo}")"
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/projects/${_project_id}/releases"
+  _gl_dl_opts+=(
+    -o
+      "${_cache_dir}/releases.json"
+  )
+  gl-dl \
+    "${_gl_dl_opts[@]}" \
+    "${_url}"
+}
+
 _log_get() {
   local \
     _namespace="${1}" \
@@ -788,6 +871,9 @@ Usage:
     project_id              Project ID for a Gitlab repository.
     artifacts               Latest artifact for an Ur Gitlab mirror.
     log                     Latest log for an Ur Gitlab mirror.
+    releases                Get releases for an Ur Gitlab mirror.
+    release                 Downloads latest release assets for
+                            an Ur Gitlab mirror.
 
   values:
     package_name            An Ur package name (mirrors
