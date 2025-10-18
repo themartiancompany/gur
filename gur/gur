@@ -557,7 +557,7 @@ _jobs_get() {
     _gl_dl_opts=() \
     _msg=()
   if [[ "${quiet}" == "n" ]]; then
-    gl_dl_opts+=(
+    _gl_dl_opts+=(
       -v
     )
   fi
@@ -567,7 +567,7 @@ _jobs_get() {
   )
   gl-dl \
     "${_gl_dl_opts[@]}" \
-    "https://gitlab.com/api/v4/projects/${_project_id}/jobs?per_page=20&id_after=300"
+    "https://gitlab.com/api/v4/projects/${_project_id}/jobs?per_page=20"
   _jobs+=( $( \
     cat \
       "${_cache_dir}/jobs.json" | \
