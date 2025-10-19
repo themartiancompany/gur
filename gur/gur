@@ -525,13 +525,21 @@ _release_get() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
+    _tag \
     _project_id \
     _gl_dl_opts=() \
     _api \
     _url \
+    _urls=() \
     _job_latest \
     _output_file \
     _token_private
+  shift \
+    2
+  _tag=""
+  if (( 0 < "$#" )); then
+    _tag="${1}"
+  fi
   _token_private_get
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
@@ -545,15 +553,25 @@ _release_get() {
   _releases_retrieve \
     "${_namespace}" \
     "${_repo}"
-  _urls=( $( \
-    cat \
-      "${_cache_dir}/releases.json" | \
-      jq \
-        '.[0].assets.links.[]' | \
+  if [[ "${_tag}" != "" ]]; then
+    _urls+=( $( \
+      cat \
+        "${_cache_dir}/releases.json" | \
         jq \
           --raw-output \
-          '.direct_asset_url')
-  )
+          '.[] | select(.tag_name == "'${_tag}'").assets.links.[].direct_asset_url')
+    )
+  elif [[ "${_tag}" == "" ]]; then
+    _urls+=( $( \
+      cat \
+        "${_cache_dir}/releases.json" | \
+        jq \
+          '.[0].assets.links.[]' | \
+          jq \
+            --raw-output \
+            '.direct_asset_url')
+    )
+  fi
   for _url in "${_urls[@]}"; do
     _file="$( \
       basename \
@@ -716,9 +734,13 @@ _gur() {
     _target_value="${5}" \
     _repos=() \
     _target_field \
-    _target_repo
+    _target_repo \
+    _command_args=()
   shift \
     5
+  _command_args+=(
+    "$@"
+  )
   if [[ "${_target_command}" == "get" ]]; then
     if [[ " ${_target_key} " == "" ]]; then
       _msg_error \
@@ -741,7 +763,8 @@ _gur() {
         _target_repo="${_target_value}"
         "_${_target_field}_get" \
           "${_target_namespace}" \
-          "${_target_repo}"
+          "${_target_repo}" \
+          "${_command_args[@]}"
       else
         _msg_error \
           "Unknown field '${_target_key}'." \
@@ -897,15 +920,15 @@ Usage:
     [options]
     <command>
       <key>
-        <value>
+        <args>
 
   commands:
     get                     Reads the value for the
       <key>                 selected key.
-        (<package>)
+        (<args>)
     check                   Checks whether the selected
       <key>                 key (or all if none) has been
-        (<package>)         correctly set for package mirror.
+        (<args>)            correctly set for package mirror.
 
   keys:
     repos                   List all Ur repos in the
@@ -917,13 +940,17 @@ Usage:
     artifacts               Latest artifact for an Ur Gitlab mirror.
     log                     Latest log for an Ur Gitlab mirror.
     releases                Get releases for an Ur Gitlab mirror.
-    release                 Downloads latest release assets for
-                            an Ur Gitlab mirror.
+    release                 Downloads a binary release built
+                            on Ur Gitlab mirror.
 
-  values:
+  common args:
     package_name            An Ur package name (mirrors
                             have same name with just the
                             extra '-ur' suffix).
+
+  release args:
+    tag                     A specific release tag to download.
+                            If not provided gets the latest.
 
   options:
      -N <namespace>         Target namespace for the Ur
@@ -1015,6 +1042,11 @@ fi
 if (( 2 < $# )); then
   target_value="${3}"
 fi
+shift \
+  3
+command_args=(
+  "$@"
+)
 _set_overrides
 _show_config
 app_opts=(
@@ -1023,6 +1055,7 @@ app_opts=(
   "${target_command}"
   "${target_key}"
   "${target_value}"
+  "${command_args[@]}"
 )
 _gur \
   "${app_opts[@]}"
