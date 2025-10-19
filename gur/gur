@@ -341,25 +341,8 @@ _project_id_get() {
     _repo="${2}" \
     _curl_opts=() \
     _token_private \
-    _token_dir \
     _token
-  _token_dir="${HOME}/.config/gitlab.com"
-  _token_private="${_token_dir}/default.txt"
-  if [[ ! -e "${_token_private}" ]]; then
-    mkdir \
-      -p \
-      "${_token_dir}"
-    chmod \
-      700 \
-      "${_token_dir}"
-    _msg=(
-      "Missing private token at"
-      "'${_token_private}'."
-    )
-    _msg_error \
-      "${_msg[*]}" \
-      1
-  fi
+  _token_private_get
   _token="PRIVATE-TOKEN: $( \
     cat \
       "${_token_private}")"
@@ -385,7 +368,9 @@ _artifacts_get() {
     _api \
     _url \
     _job_latest \
-    _old_pwd
+    _old_pwd \
+    _token_private
+  _token_private_get
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
@@ -406,6 +391,8 @@ _artifacts_get() {
       "${_cache_dir}/artifacts.zip"
     -f
       "zip"
+    -C
+      "${_token_private}"
   )
   gl-dl \
     "${_gl_dl_opts[@]}" \
@@ -462,11 +449,46 @@ _job_latest_get() {
   # _job_latest="${_jobs[0]}"
 }
 
+_token_private_get() {
+  local \
+    _token_dir \
+    _token_namespace \
+    _msg=()
+  _token_dir="${HOME}/.config/gitlab.com"
+  _token_private="${_token_dir}/default.txt"
+  _token_namespace="${_token_dir}/${_namespace}.txt"
+  if [[ -e "${_token_namespace}" ]]; then
+    _token_private="${_token_namespace}"
+    _msg=(
+      "Selecting namespace token."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
+  if [[ ! -e "${_token_private}" ]]; then
+    mkdir \
+      -p \
+      "${_token_dir}"
+    chmod \
+      700 \
+      "${_token_dir}"
+    _msg=(
+      "Missing private token at"
+      "'${_token_private}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
 _pipelines_get() {
   local \
     _project_id="${1}" \
     _gl_dl_opts=() \
-    _msg=()
+    _msg=() \
+    _token_private
+  _token_private_get
   if [[ "${quiet}" == "n" ]]; then
     gl_dl_opts+=(
       -v
@@ -475,6 +497,8 @@ _pipelines_get() {
   _gl_dl_opts+=(
     -o
       "${_cache_dir}/pipelines.json" 
+    -C
+      "${_token_private}"
   )
   gl-dl \
     "${_gl_dl_opts[@]}" \
@@ -506,12 +530,18 @@ _release_get() {
     _api \
     _url \
     _job_latest \
-    _output_file
+    _output_file \
+    _token_private
+  _token_private_get
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
     )
   fi
+  _gl_dl_opts+=(
+    -C
+      "${_token_private}"
+  )
   _releases_retrieve \
     "${_namespace}" \
     "${_repo}"
@@ -556,8 +586,8 @@ _releases_retrieve() {
     _gl_dl_opts=() \
     _api \
     _url \
-    _job_latest \
-    _old_pwd
+    _token_private
+  _token_private_get
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
@@ -570,6 +600,8 @@ _releases_retrieve() {
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/releases"
   _gl_dl_opts+=(
+    -C
+      "${_token_private}"
     -o
       "${_cache_dir}/releases.json"
   )
@@ -610,8 +642,8 @@ _gitlab_log_get() {
     _gl_dl_opts=() \
     _api \
     _url \
-    _job_latest \
-    _old_pwd
+    _token_private
+  _token_private_get
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
@@ -624,6 +656,8 @@ _gitlab_log_get() {
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/jobs/${_job_id}/trace"
   _gl_dl_opts+=(
+    -C
+      "${_token_private}"
     -o
       "${_cache_dir}/trace.log"
   )
@@ -638,13 +672,17 @@ _jobs_get() {
   local \
     _project_id="${1}" \
     _gl_dl_opts=() \
-    _msg=()
+    _msg=() \
+    _token_private
+  _token_private_get
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
     )
   fi
   _gl_dl_opts+=(
+    -C
+      "${_token_private}"
     -o
       "${_cache_dir}/jobs.json" 
   )
