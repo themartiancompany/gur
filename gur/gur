@@ -75,13 +75,24 @@ _global_variables() {
 
 _requirements() {
   _check_cmd \
+    "cat" \
+    "coreutils"
+  _check_cmd \
     "curl"
   _check_cmd \
     'gh'
   _check_cmd \
+    'gl-dl'
+  _check_cmd \
     'python'
   _check_cmd \
     'jq'
+  _check_cmd \
+    "sort" \
+    "coreutils"
+  _check_cmd \
+    "tail" \
+    "coreutils"
   _check_cmd \
     "unzip"
 }
