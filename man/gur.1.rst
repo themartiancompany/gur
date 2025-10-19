@@ -79,6 +79,16 @@ Values
                         have same name with just the
                         extra *-ur* suffix).
 
+Credentials
+============
+
+Gitlab.com access tokens must be stored
+in '$HOME/.config/gitlab.com/<namespace>.txt'.
+
+If the namespace token is missing, the 'default'
+one will be selected instead.
+
+
 Options
 ========
 
