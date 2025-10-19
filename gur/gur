@@ -521,6 +521,20 @@ _pipelines_get() {
     "${_cache_dir}/jobs.json"
 }
 
+_release_latest_get() {
+  _tag="$( \
+    cat \
+      "${_cache_dir}/releases.json" | \
+      jq \
+        --raw-output \
+        '.[].tag_name' | \
+        sort \
+          -V | \
+        tail \
+          -n \
+            1)"
+}
+
 _release_get() {
   local \
     _namespace="${1}" \
@@ -553,25 +567,16 @@ _release_get() {
   _releases_retrieve \
     "${_namespace}" \
     "${_repo}"
-  if [[ "${_tag}" != "" ]]; then
-    _urls+=( $( \
-      cat \
-        "${_cache_dir}/releases.json" | \
-        jq \
-          --raw-output \
-          '.[] | select(.tag_name == "'${_tag}'").assets.links.[].direct_asset_url')
-    )
-  elif [[ "${_tag}" == "" ]]; then
-    _urls+=( $( \
-      cat \
-        "${_cache_dir}/releases.json" | \
-        jq \
-          '.[0].assets.links.[]' | \
-          jq \
-            --raw-output \
-            '.direct_asset_url')
-    )
+  if [[ "${_tag}" == "" ]]; then
+    _release_latest_get
   fi
+  _urls+=( $( \
+    cat \
+      "${_cache_dir}/releases.json" | \
+      jq \
+        --raw-output \
+        '.[] | select(.tag_name == "'${_tag}'").assets.links.[].direct_asset_url')
+  )
   for _url in "${_urls[@]}"; do
     _file="$( \
       basename \
