@@ -829,6 +829,13 @@ _gur() {
         "Unknown field '${_target_key}'." \
         1
     fi
+  else
+    _msg=(
+      "Unknown command '${_target_command}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
   fi
 }
 
