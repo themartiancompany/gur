@@ -462,8 +462,8 @@ _token_private_get() {
     _msg=(
       "Selecting namespace token."
     )
-    _msg_info \
-      "${_msg[*]}"
+    # _msg_info \
+    #   "${_msg[*]}"
   fi
   if [[ ! -e "${_token_private}" ]]; then
     mkdir \
