@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 from github import Github
+from os import environ as _env
 from os.path import join as _path_join
 from os.path import exists as _path_exists
 from pathlib import Path
@@ -10,15 +11,16 @@ def _key_path_get(
   _namespace):
   return _path_join(
     Path.home(),
-    f".config/gur/{_namespace}.txt")
+    f".config/github.com/{_namespace}.txt")
 
 def _file_read(
   _file):
   try:
     with open(
       _file,
-      'r') as _file_handler:
-        _content = _file_handler.read()
+      mode='r',
+      encoding='utf-8') as _file_handler:
+      _content = _file_handler.read()
   except FileNotFoundError as exception:
     sys_exit(
       f"ERROR: file '{_file}' not found")
@@ -33,13 +35,14 @@ def _repos_get(
   _verbose):
   _repos = []
   _key = None
-  if ( _path_exists(
-         _key_path) ):
+  _key_exists = _path_exists(
+    _key_path)
+  if _key_exists:
     _key = _file_read(
       _key_path)
   _gh = Github(
     _key,
-    # os.environ.get(
+    # _env.get(
     #   "GITHUB_ACCESS_TOKEN"),
     per_page=100)
   try:
@@ -85,7 +88,7 @@ def _main():
     _key = _key_path_get(
       _args.target_namespace)
   elif ( type(_args.key) == str ):
-    _key = args.key
+    _key = _args.key
   else:
     raise Exception(
       "Key must be of type string")

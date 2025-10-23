@@ -39,6 +39,7 @@ _sourced \
 # shellcheck disable=SC2034
 _global_variables() {
   run_date=""
+  wallet_name=""
   target_namespace=""
   target_command=""
   target_key=""
@@ -112,11 +113,19 @@ _repos_get() {
     _url \
     _repo \
     _repos_get_bin \
+    _repos_get_opts=() \
     _lib \
-    _msg=()
+    _msg=() \
+    _token_private
   _lib="$( \
     _get_lib)"
   _repos_get_bin="${_lib}/gur/repos-get"
+  _domain="github.com"
+  _token_private_get
+  _repos_get_opts+=(
+    --key
+      "${_token_private}"
+  )
   _msg=(
     "Retrieving list of"
     "Ur mirrors for"
@@ -127,6 +136,7 @@ _repos_get() {
     "${_msg[*]}"
   _repos_urls=( $( \
     "${_repos_get_bin}" \
+      "${_repos_get_opts[@]}" \
       "${_namespace}")
   )
   for _url in "${_repos_urls[@]}"; do
@@ -197,11 +207,36 @@ _homepage_get() {
     "${_homepage}"
 }
 
+_secrets_get() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _secrets=() \
+    _gh_opts=() \
+    _repo_url
+  repo__url="${http}/${_target_namespace}/${_target_repo}"
+  _gh_opts+=(
+    -R
+      "${_repo_url}"
+  )
+  _secrets=( $( \
+    gh \
+      "${_gh_opts[@]}" \
+      secret \
+        list | \
+        awk \
+          '${print $1}')
+  )
+  echo \
+    "${_secrets[@]}"
+}
+
+
 _topics_get() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
-    _topics
+    _topics=()
   _topics=( $( \
     gh \
       repo \
@@ -280,7 +315,6 @@ _description_check() {
   fi
 }
 
-
 _homepage_check() {
   local \
     _target_namespace="${1}" \
@@ -344,6 +378,83 @@ _topics_check() {
         "${_topic}"
     fi
   done
+}
+
+_gl_dl_token_set() {
+  local \
+    _token_private \
+    _domain \
+    _token
+  _domain="github.com"
+  _token_private_get
+  _token="$( \
+    cat \
+      "${_token_private}")"
+  gh \
+    secret \
+      set \
+        "GL_DL_PRIVATE_TOKEN" \
+        --body \
+          "${_token}"
+}
+
+_bur_gpg_key_set() {
+  local \
+    _token_private \
+    _domain \
+    _token
+  _domain="github.com"
+  _token_private_get
+  _token="$( \
+    cat \
+      "${_token_private}")"
+  gh \
+    secret \
+      set \
+        "GL_DL_PRIVATE_TOKEN" \
+        --body \
+          "${_token}"
+}
+
+_ci_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _secrets=() \
+    _secrets_missing=()
+  _msg=(
+    "Checking"
+    "'${_target_namespace}/${_target_repo}'"
+    "continuous integration variables."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _secrets=( $( \
+    _secrets_get \
+      "${_target_namespace}" \
+      "${_target_repo}")
+  )
+  if [[ " ${_secrets[*]} " != *" ${GL_DL_TOKEN_PRIVATE} "* ]]; then
+    _msg=(
+      "Missing secret gitlab.com"
+      "access token variable"
+      "'GL_DL_TOKEN_PRIVATE',"
+      "setting up."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _gl_dl_token_private_set
+  fi
+  if [[ " ${_secrets[*]} " != *" ${GUR_GPG_KEY} "* ]]; then
+    _msg=(
+      "Missing secret gitlab.com"
+      "access token variable"
+      "'BUR_GPG_KEY', setting up."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _bur_gpg_key_set
+  fi
 }
 
 _project_id_get() {
@@ -465,7 +576,10 @@ _token_private_get() {
     _token_dir \
     _token_namespace \
     _msg=()
-  _token_dir="${HOME}/.config/gitlab.com"
+  if [[ ! -v "_domain" ]]; then
+    _domain="gitlab.com"
+  fi
+  _token_dir="${HOME}/.config/${_domain}"
   _token_private="${_token_dir}/default.txt"
   _token_namespace="${_token_dir}/${_namespace}.txt"
   if [[ -e "${_token_namespace}" ]]; then
@@ -473,8 +587,6 @@ _token_private_get() {
     _msg=(
       "Selecting namespace token."
     )
-    # _msg_info \
-    #   "${_msg[*]}"
   fi
   if [[ ! -e "${_token_private}" ]]; then
     mkdir \
@@ -764,6 +876,7 @@ _gur() {
         1
     fi
     if [[ "${_target_key}" == "repos" ]]; then
+      echo "hi"
       _repos_get \
         "${_target_namespace}"
       echo \
@@ -881,7 +994,7 @@ _gur() {
 _cache_dir_auto_detect() {
   local \
     _cache_dir
-  _cache_dir="${HOME}/.cache/gur"
+  _cache_dir="${HOME}/.cache/gur/${target_namespace}"
   if [[ ! -e "${_cache_dir}" ]]; then
     mkdir \
       -p \
@@ -893,7 +1006,7 @@ _cache_dir_auto_detect() {
   _set_override \
     "cache" \
     "dir" \
-    "${HOME}/.cache/gur"
+    "${_cache_dir}"
 }
 
 _set_overrides() {
@@ -911,11 +1024,15 @@ _set_overrides() {
     "run" \
     "date" \
     "$(_get_date_human)"
-  _cache_dir_auto_detect
   _set_override \
     "target" \
     "namespace" \
     "themartiancompany"
+  _set_override \
+    "wallet" \
+    "name" \
+    "${target_namespace}"
+  _cache_dir_auto_detect
 }
 
 # Show help usage, with an exit status.
@@ -1010,7 +1127,6 @@ _show_config() {
   _msg_info "                     Target key:   ${target_key}"
   _msg_info "                   Target value:   ${target_value}"
 }
-
 _globals
 _global_variables
 _requirements
@@ -1059,7 +1175,7 @@ if (( 2 < $# )); then
   target_value="${3}"
 fi
 shift \
-  3
+  "${#}"
 command_args=(
   "$@"
 )
