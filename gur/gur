@@ -788,6 +788,14 @@ _log_get() {
     "${_job_latest}"
 }
 
+_log_check() {
+  true
+}
+
+_releases_check() {
+  true
+}
+
 _gitlab_log_get() {
   local \
     _namespace="${1}" \
