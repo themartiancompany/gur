@@ -290,6 +290,10 @@ _topic_set() {
       "${_topic}"
 }
 
+_project_id_check() {
+  true
+}
+
 _description_check() {
   local \
     _target_namespace="${1}" \
@@ -543,6 +547,11 @@ _artifacts_get() {
     "${_old_pwd}"
   rmdir \
     "${_cache_dir}/artifacts"
+}
+
+_artifacts_check() {
+  # TODO
+  true
 }
 
 _pipeline_latest_get() {
