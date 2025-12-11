@@ -65,7 +65,9 @@ _global_variables() {
     "homepage"
     "topics"
     "project_id"
+    "secrets"
     "artifacts"
+    "env"
     "log"
     "releases"
     "release"
@@ -145,7 +147,7 @@ _repos_get() {
         "${_url}")"
     if [[ "${_repo}" == *"-ur" ]]; then
       _repos+=(
-        "${_repo}"
+        "${_repo%-ur}"
       )
     fi
   done
@@ -210,27 +212,35 @@ _homepage_get() {
 _secrets_get() {
   local \
     _target_namespace="${1}" \
+    _target_repo="${2}"
+  _github_secrets_get \
+    "${_target_namespace}" \
+    "${_target_repo}"
+}
+
+_github_secrets_get() {
+  local \
+    _target_namespace="${1}" \
     _target_repo="${2}" \
     _secrets=() \
     _gh_opts=() \
     _repo_url
-  repo__url="${http}/${_target_namespace}/${_target_repo}"
+  _repo_url="${http}/${_target_namespace}/${_target_repo}"
   _gh_opts+=(
     -R
       "${_repo_url}"
   )
-  _secrets=( $( \
+  _secrets=( $(
     gh \
       "${_gh_opts[@]}" \
       secret \
         list | \
         awk \
-          '${print $1}')
+          '{print $1}')
   )
   echo \
     "${_secrets[@]}"
 }
-
 
 _topics_get() {
   local \
@@ -298,11 +308,20 @@ _description_check() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
+  _github_description_check \
+    "${_target_namespace}" \
+    "${_target_repo}"
+}
+
+_github_description_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
     _description \
     _msg=()
   _msg=(
-    "Checking"
-    "'${_target_namespace}/${_target_repo}'"
+    "Checking Github's"
+    "'${_target_namespace}/${_target_repo}-ur'"
     "description."
   )
   _msg_info \
@@ -310,11 +329,11 @@ _description_check() {
   _description="$( \
     _description_get \
       "${_target_namespace}" \
-      "${_target_repo}")"
+      "${_target_repo}-ur")"
   if [[ "${_description}" != "${mirror_description[*]}" ]]; then
     _description_set \
       "${_target_namespace}" \
-      "${_target_repo}" \
+      "${_target_repo}-ur" \
       "${mirror_description[*]}"
   fi
 }
@@ -323,10 +342,19 @@ _homepage_check() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
+  _github_homepage_check \
+    "${_target_namespace}" \
+    "${_target_repo}"
+}
+
+_github_homepage_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
     _homepage
   _msg=(
     "Checking"
-    "'${_target_namespace}/${_target_repo}'"
+    "'${_target_namespace}/${_target_repo}-ur'"
     "homepage."
   )
   _msg_info \
@@ -334,11 +362,11 @@ _homepage_check() {
   _homepage="$( \
     _homepage_get \
       "${_target_namespace}" \
-      "${_target_repo}")"
+      "${_target_repo}-ur")"
   if [[ "${_homepage}" != "${mirror_homepage}" ]]; then
     _homepage_set \
       "${_target_namespace}" \
-      "${_target_repo}" \
+      "${_target_repo}-ur" \
       "${mirror_homepage}"
   fi
 }
@@ -347,11 +375,20 @@ _topics_check() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
+  _github_homepage_check \
+    "${_target_namespace}" \
+    "${_target_repo}"
+}
+
+_github_topics_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
     _topics=() \
     _target_topics=()
   _msg=(
     "Checking"
-    "'${_target_namespace}/${_target_repo}'"
+    "'${_target_namespace}/${_target_repo}-ur'"
     "topics."
   )
   _msg_info \
@@ -359,12 +396,12 @@ _topics_check() {
   _topics=( $( \
     _topics_get \
       "${_target_namespace}" \
-      "${_target_repo}")
+      "${_target_repo}-ur")
   )
   if [[ "${_topics[*]}" == "" ]]; then
     _msg=(
       "Found no topics on"
-      "mirror '${_target_repo}'."
+      "mirror '${_target_repo}-ur'."
     )
     _msg_info \
       "${_msg[*]}"
@@ -378,13 +415,17 @@ _topics_check() {
         "${_msg[*]}"
       _topic_set \
         "${_target_namespace}" \
-        "${_target_repo}" \
+        "${_target_repo}-ur" \
         "${_topic}"
     fi
   done
 }
 
 _gl_dl_token_set() {
+  _github_gl_dl_token_set
+}
+
+_github_gl_dl_token_set() {
   local \
     _token_private \
     _domain \
@@ -403,6 +444,10 @@ _gl_dl_token_set() {
 }
 
 _bur_gpg_key_set() {
+  _github_bur_gpg_key_set
+}
+
+_github_bur_gpg_key_set() {
   local \
     _token_private \
     _domain \
@@ -424,6 +469,18 @@ _ci_check() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
+  _github_ci_check \
+    "${_target_namespace}" \
+    "${_target_repo}"
+  _gitlab_ci_check \
+    "${_target_namespace}" \
+    "${_target_repo}"
+}
+
+_github_ci_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
     _secrets=() \
     _secrets_missing=()
   _msg=(
@@ -434,7 +491,7 @@ _ci_check() {
   _msg_info \
     "${_msg[*]}"
   _secrets=( $( \
-    _secrets_get \
+    _github_secrets_get \
       "${_target_namespace}" \
       "${_target_repo}")
   )
@@ -447,7 +504,7 @@ _ci_check() {
     )
     _msg_info \
       "${_msg[*]}"
-    _gl_dl_token_private_set
+    _github_gl_dl_token_private_set
   fi
   if [[ " ${_secrets[*]} " != *" ${GUR_GPG_KEY} "* ]]; then
     _msg=(
@@ -457,7 +514,147 @@ _ci_check() {
     )
     _msg_info \
       "${_msg[*]}"
-    _bur_gpg_key_set
+    _github_bur_gpg_key_set
+  fi
+}
+
+_gitlab_ci_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _env \
+    _msg=()
+  _msg=(
+    "Checking Gitlab.com"
+    "'${_target_namespace}/${_target_repo}-ur'"
+    "environment."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _gitlab_env_set \
+    "${_target_namespace}" \
+    "${_target_repo}" \
+    "ciao" \
+    "come"
+}
+
+_gitlab_env_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _key \
+    _project_id \
+    _curl_opts=() \
+    _api \
+    _url \
+    _token_private \
+    _token \
+    _variable \
+    _message \
+    _value
+  _key=""
+  if (( 2 < "${#}" )); then
+    _key="${3}"
+  fi
+  _token_private_get
+  _project_id="$( \
+    _project_id_get \
+      "${_namespace}" \
+      "${_repo}")"
+  _token="PRIVATE-TOKEN: $( \
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    -XGET
+    --header
+      "${_token}"
+  )
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/projects/${_project_id}/variables"
+  if [[ "${_key}" != "" ]]; then
+    _url="${_url}/${_key}"
+  fi
+  _variable="$(
+    curl \
+      "${_curl_opts[@]}" \
+      "${_url}")"
+  _message="$(
+    echo \
+      "${_variable}" |
+      jq \
+        --raw-output \
+        ".message")"
+  _value="$(
+    echo \
+      "${_variable}" |
+      jq \
+        --raw-output \
+        ".value")"
+  if [[ "${_value}" != "" &&
+        "${_value}" != "null" ]]; then
+    echo \
+      "${_value}"
+  elif [[ "${_message}" == "404 Variable Not Found" ]]; then
+    return 1
+  fi
+}
+
+_gitlab_env_set() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _key="${3}" \
+    _value="${4}" \
+    _project_id \
+    _curl_opts=() \
+    _api \
+    _url \
+    _old_pwd \
+    _token_private \
+    _token
+  _project_id="$( \
+    _project_id_get \
+      "${_namespace}" \
+      "${_repo}")"
+  _token_private_get
+  _token="PRIVATE-TOKEN: $( \
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    -XGET
+    --header
+      "${_token}"
+    --form
+      "key=${_key}"
+    --form
+      "value=${_value}"
+  )
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/projects/${_project_id}/variables"
+  _variable="$(
+    _gitlab_env_get \
+      "${_target_namespace}" \
+      "${_target_repo}" \
+      "${_key}" || \
+      true)"
+  if [[ "${_variable}" != "" ]]; then
+    _curl_opts+=(
+      --request
+        "PUT"
+    )
+    curl \
+      "${_curl_opts[@]}" \
+      "${_url}/${_key}"
+  elif [[ "${_variable}" == "" ]]; then
+    _curl_opts+=(
+      --request
+        "POST"
+    )
+    curl \
+      "${_curl_opts[@]}" \
+      "${_url}"
   fi
 }
 
@@ -796,6 +993,10 @@ _releases_check() {
   true
 }
 
+_release_check() {
+  true
+}
+
 _gitlab_log_get() {
   local \
     _namespace="${1}" \
@@ -893,7 +1094,6 @@ _gur() {
         1
     fi
     if [[ "${_target_key}" == "repos" ]]; then
-      echo "hi"
       _repos_get \
         "${_target_namespace}"
       echo \
@@ -919,7 +1119,7 @@ _gur() {
     fi
   elif [[ "${_target_command}" == "check" ]]; then
     if [[ "${_target_value}" != "" ]]; then
-      _target_repo="${_target_value}-ur"
+      _target_repo="${_target_value}"
       _repos+=(
         "${_target_repo}"
       )
@@ -1143,6 +1343,7 @@ _show_config() {
   _msg_info "                 Target command:   ${target_command}"
   _msg_info "                     Target key:   ${target_key}"
   _msg_info "                   Target value:   ${target_value}"
+  _msg_info "                Extra arguments:   ${command_args[*]}"
 }
 _globals
 _global_variables
@@ -1185,14 +1386,17 @@ if (( $# < 1 )); then
     1
 fi
 target_command="${1}"
+_shift="1"
 if (( 1 < $# )); then
   target_key="${2}"
+  _shift="2"
 fi
 if (( 2 < $# )); then
   target_value="${3}"
+  _shift="3"
 fi
 shift \
-  "${#}"
+  "${_shift}"
 command_args=(
   "$@"
 )
