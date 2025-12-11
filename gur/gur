@@ -61,12 +61,14 @@ _global_variables() {
     "life-package"
   )
   mirror_fields=(
+    "exists"
     "description"
     "homepage"
     "topics"
     "project_id"
     "secrets"
     "artifacts"
+    "ci"
     "env"
     "log"
     "releases"
@@ -110,6 +112,12 @@ _get_conf_dir_path() {
 
 _repos_get() {
   local \
+    _namespace="${1}"
+  _github_repos_get
+}
+
+_github_repos_get() {
+  local \
     _namespace="${1}" \
     _repos_urls=() \
     _url \
@@ -122,8 +130,9 @@ _repos_get() {
   _lib="$( \
     _get_lib)"
   _repos_get_bin="${_lib}/gur/repos-get"
-  _domain="github.com"
-  _token_private_get
+  _token_private_get \
+    "github.com" \
+    "${_namespace}"
   _repos_get_opts+=(
     --key
       "${_token_private}"
@@ -173,7 +182,7 @@ _repos_get() {
     "${_cache_dir}/mirrors.db"
 }
 
-_description_get() {
+_github_description_get() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
@@ -191,7 +200,7 @@ _description_get() {
     "${_description}"
 }
 
-_homepage_get() {
+_github_homepage_get() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
@@ -227,7 +236,7 @@ _github_secrets_get() {
     _repo_url
   _repo_url="${http}/${_target_namespace}/${_target_repo}"
   _gh_opts+=(
-    -R
+    --repo
       "${_repo_url}"
   )
   _secrets=( $(
@@ -327,11 +336,11 @@ _github_description_check() {
   _msg_info \
     "${_msg[*]}"
   _description="$( \
-    _description_get \
+    _github_description_get \
       "${_target_namespace}" \
       "${_target_repo}-ur")"
   if [[ "${_description}" != "${mirror_description[*]}" ]]; then
-    _description_set \
+    _github_description_set \
       "${_target_namespace}" \
       "${_target_repo}-ur" \
       "${mirror_description[*]}"
@@ -364,7 +373,7 @@ _github_homepage_check() {
       "${_target_namespace}" \
       "${_target_repo}-ur")"
   if [[ "${_homepage}" != "${mirror_homepage}" ]]; then
-    _homepage_set \
+    _github_homepage_set \
       "${_target_namespace}" \
       "${_target_repo}-ur" \
       "${mirror_homepage}"
@@ -375,7 +384,7 @@ _topics_check() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
-  _github_homepage_check \
+  _github_topics_check \
     "${_target_namespace}" \
     "${_target_repo}"
 }
@@ -422,53 +431,76 @@ _github_topics_check() {
 }
 
 _gl_dl_token_set() {
-  _github_gl_dl_token_set
-}
-
-_github_gl_dl_token_set() {
   local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _git_domain="${3}" \
+    _git_service="${4}" \
     _token_private \
-    _domain \
     _token
-  _domain="github.com"
-  _token_private_get
+  _token_private_get \
+    "${_git_domain}" \
+    "${_target_namespace}"
   _token="$( \
     cat \
       "${_token_private}")"
-  gh \
-    secret \
-      set \
-        "GL_DL_PRIVATE_TOKEN" \
-        --body \
-          "${_token}"
+  "_${_git_service}_env_set" \
+    "${_target_namespace}" \
+    "${_target_repo}" \
+    "GL_DL_PRIVATE_TOKEN" \
+    "${_token}"
+}
+
+_bur_gpg_key_get() {
+  local \
+    _target_namespace="${1}" \
+    _evm_gpg_opts=() \
+    _msg=() \
+    _bur_name
+  _bur_id="github.bur.${_target_namespace}"
+  if [[ "${quiet}" == "n" ]]; then
+    _evm_gpg_opts+=(
+      -N
+        "${_bur_id}"
+    )
+  fi
+  _bur_gpg_key="$(
+    evm-gpg \
+      "${_evm_gpg_opts[@]}" \
+      export)"
+  if [[ "${_bur_gpg_key}" == "" ]]; then
+    # TODO:
+    #   Generate the key with
+    #   evm-gpg.
+    _msg=(
+      "No GPG key for bur wallet"
+      "'${_bur_name}."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
 }
 
 _bur_gpg_key_set() {
-  _github_bur_gpg_key_set
-}
-
-_github_bur_gpg_key_set() {
   local \
-    _token_private \
-    _domain \
-    _token
-  _domain="github.com"
-  _token_private_get
-  _token="$( \
-    cat \
-      "${_token_private}")"
-  gh \
-    secret \
-      set \
-        "GL_DL_PRIVATE_TOKEN" \
-        --body \
-          "${_token}"
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _git_service="${3}" \
+    _bur_gpg_key
+  _bur_gpg_key_get \
+    "${_target_namespace}"
+  "_${_git_service}_env_set" \
+    "${_target_namespace}" \
+    "${_target_repo}" \
+    "BUR_GPG_KEY" \
+    "${_bur_gpg_key}"
 }
 
 _ci_check() {
   local \
     _target_namespace="${1}" \
-    _target_repo="${2}" \
+    _target_repo="${2}"
   _github_ci_check \
     "${_target_namespace}" \
     "${_target_repo}"
@@ -482,10 +514,13 @@ _github_ci_check() {
     _target_namespace="${1}" \
     _target_repo="${2}" \
     _secrets=() \
-    _secrets_missing=()
+    _secrets_missing=() \
+    _bur_gpg_key \
+    _repo
+  _repo="${_target_repo}-ur"
   _msg=(
-    "Checking"
-    "'${_target_namespace}/${_target_repo}'"
+    "Checking Github's"
+    "'${_target_namespace}/${_repo}'"
     "continuous integration variables."
   )
   _msg_info \
@@ -493,20 +528,25 @@ _github_ci_check() {
   _secrets=( $( \
     _github_secrets_get \
       "${_target_namespace}" \
-      "${_target_repo}")
+      "${_repo}")
   )
-  if [[ " ${_secrets[*]} " != *" ${GL_DL_TOKEN_PRIVATE} "* ]]; then
+  echo "${_secrets[*]}"
+  if [[ " ${_secrets[*]} " != *" GL_DL_PRIVATE_TOKEN "* ]]; then
     _msg=(
-      "Missing secret gitlab.com"
+      "Missing secret github.com"
       "access token variable"
-      "'GL_DL_TOKEN_PRIVATE',"
+      "'GL_DL_PRIVATE_TOKEN',"
       "setting up."
     )
     _msg_info \
       "${_msg[*]}"
-    _github_gl_dl_token_private_set
+    _gl_dl_token_set \
+      "${_target_namespace}" \
+      "${_repo}" \
+      "github.com" \
+      "github"
   fi
-  if [[ " ${_secrets[*]} " != *" ${GUR_GPG_KEY} "* ]]; then
+  if [[ " ${_secrets[*]} " != *" BUR_GPG_KEY "* ]]; then
     _msg=(
       "Missing secret gitlab.com"
       "access token variable"
@@ -514,7 +554,10 @@ _github_ci_check() {
     )
     _msg_info \
       "${_msg[*]}"
-    _github_bur_gpg_key_set
+    _bur_gpg_key_set \
+      "${_target_namespace}" \
+      "${_repo}" \
+      "github"
   fi
 }
 
@@ -523,19 +566,25 @@ _gitlab_ci_check() {
     _target_namespace="${1}" \
     _target_repo="${2}" \
     _env \
-    _msg=()
+    _msg=() \
+    _repo
+  _repo="${_target_repo}-ur"
   _msg=(
     "Checking Gitlab.com"
-    "'${_target_namespace}/${_target_repo}-ur'"
+    "'${_target_namespace}/${_repo}'"
     "environment."
   )
   _msg_info \
     "${_msg[*]}"
-  _gitlab_env_set \
+  _gl_dl_token_set \
     "${_target_namespace}" \
-    "${_target_repo}" \
-    "ciao" \
-    "come"
+    "${_repo}" \
+    "gitlab.com" \
+    "gitlab"
+  _bur_gpg_key_set \
+    "${_target_namespace}" \
+    "${_repo}" \
+    "gitlab"
 }
 
 _gitlab_env_get() {
@@ -600,6 +649,33 @@ _gitlab_env_get() {
   fi
 }
 
+_github_env_set() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _key="${3}" \
+    _value="${4}" \
+    _gh_opts=() \
+    _msg=()
+  _gh_opts+=(
+    --repo
+      "${_target_namespace}/${_target_repo}"
+  )
+  _msg=(
+    "Running gh with options"
+    "'${_gh_opts[*]}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  gh \
+    secret \
+      "${_gh_opts[@]}" \
+      set \
+        "${_key}" \
+        --body \
+          "${_value}"
+}
+
 _gitlab_env_set() {
   local \
     _namespace="${1}" \
@@ -610,7 +686,6 @@ _gitlab_env_set() {
     _curl_opts=() \
     _api \
     _url \
-    _old_pwd \
     _token_private \
     _token
   _project_id="$( \
@@ -703,7 +778,7 @@ _artifacts_get() {
     _project_id_get \
       "${_namespace}" \
       "${_repo}")"
-  _job_latest_get \
+  _gitlab_job_latest_get \
     "${_project_id}"
   _msg_info \
     "Found job id '${_job_latest}'."
@@ -751,26 +826,27 @@ _artifacts_check() {
   true
 }
 
-_pipeline_latest_get() {
+_gitlab_pipeline_latest_get() {
   local \
     _project_id="${1}" \
     _pipelines=()
-  _pipelines_get \
-    "${_project_id}"
+  _gitlab_pipelines_get \
+    "${_project_id}" \
+    "${_target_namespace}"
 }
 
-_job_latest_get() {
+_gitlab_job_latest_get() {
   local \
     _project_id="${1}" \
     _jobs=()
-  _jobs_get \
+  _gitlab_jobs_get \
     "${_project_id}"
-  _job_latest="$( \
+  _job_latest="$(
     IFS=$'\n'
     echo \
-      "${_jobs[*]}" | \
+      "${_jobs[*]}" |
       sort \
-        -nr | \
+        -nr |
           head \
             -n \
               1)"
@@ -779,11 +855,17 @@ _job_latest_get() {
 
 _token_private_get() {
   local \
+    _domain \
     _token_dir \
     _token_namespace \
     _msg=()
-  if [[ ! -v "_domain" ]]; then
-    _domain="gitlab.com"
+  _domain="gitlab.com"
+  if (( 0 < "${#}" )); then
+    _domain="${1}"
+  fi
+  _namespace="default"
+  if (( 1 < "${#}" )); then
+    _namespace="${2}"
   fi
   _token_dir="${HOME}/.config/${_domain}"
   _token_private="${_token_dir}/default.txt"
@@ -811,15 +893,17 @@ _token_private_get() {
   fi
 }
 
-_pipelines_get() {
+_gitlab_pipelines_get() {
   local \
     _project_id="${1}" \
     _gl_dl_opts=() \
     _msg=() \
     _token_private
-  _token_private_get
+  _token_private_get \
+    "gitlab.com" \
+    "${_target_namespace}"
   if [[ "${quiet}" == "n" ]]; then
-    gl_dl_opts+=(
+    _gl_dl_opts+=(
       -v
     )
   fi
@@ -867,6 +951,15 @@ _release_latest_get() {
 _release_get() {
   local \
     _namespace="${1}" \
+    _repo="${2}"
+  _gitlab_release_get \
+    "${_namespace}" \
+    "${_repo}"
+}
+
+_gitlab_release_get() {
+  local \
+    _namespace="${1}" \
     _repo="${2}" \
     _tag \
     _project_id \
@@ -883,7 +976,9 @@ _release_get() {
   if (( 0 < "$#" )); then
     _tag="${1}"
   fi
-  _token_private_get
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
@@ -930,7 +1025,7 @@ _releases_get() {
   jq
 }
 
-_releases_retrieve() {
+_gitlab_releases_retrieve() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
@@ -939,7 +1034,9 @@ _releases_retrieve() {
     _api \
     _url \
     _token_private
-  _token_private_get
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
@@ -972,7 +1069,7 @@ _log_get() {
     _project_id_get \
       "${_namespace}" \
       "${_repo}")"
-  _job_latest_get \
+  _gitlab_job_latest_get \
     "${_project_id}"
   _msg=(
     "Found job id '${_job_latest}'."
@@ -1007,7 +1104,9 @@ _gitlab_log_get() {
     _api \
     _url \
     _token_private
-  _token_private_get
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
@@ -1032,13 +1131,14 @@ _gitlab_log_get() {
     "${_cache_dir}/trace.log"
 }
 
-_jobs_get() {
+_gitlab_jobs_get() {
   local \
     _project_id="${1}" \
     _gl_dl_opts=() \
     _msg=() \
     _token_private
-  _token_private_get
+  _token_private_get \
+    "gitlab.com"
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
