@@ -270,7 +270,7 @@ _topics_get() {
     "${_topics[@]}"
 }
 
-_description_set() {
+_github_description_set() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
@@ -283,7 +283,7 @@ _description_set() {
       "${_description}"
 }
 
-_homepage_set() {
+_github_homepage_set() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
@@ -296,7 +296,7 @@ _homepage_set() {
       "${_homepage}"
 }
 
-_topic_set() {
+_github_topic_set() {
   local \
     _target_namespace="${1}" \
     _target_repo="${2}" \
@@ -394,10 +394,12 @@ _github_topics_check() {
     _target_namespace="${1}" \
     _target_repo="${2}" \
     _topics=() \
-    _target_topics=()
+    _target_topics=() \
+    _repo
+  _repo="${_target_repo}"
   _msg=(
     "Checking"
-    "'${_target_namespace}/${_target_repo}-ur'"
+    "'${_target_namespace}/${_repo}'"
     "topics."
   )
   _msg_info \
@@ -405,7 +407,7 @@ _github_topics_check() {
   _topics=( $( \
     _topics_get \
       "${_target_namespace}" \
-      "${_target_repo}-ur")
+      "${_repo}")
   )
   if [[ "${_topics[*]}" == "" ]]; then
     _msg=(
@@ -422,9 +424,9 @@ _github_topics_check() {
       )
       _msg_info \
         "${_msg[*]}"
-      _topic_set \
+      _github_topic_set \
         "${_target_namespace}" \
-        "${_target_repo}-ur" \
+        "${_repo}" \
         "${_topic}"
     fi
   done
