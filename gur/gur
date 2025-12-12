@@ -450,7 +450,8 @@ _gl_dl_token_set() {
     "${_target_namespace}" \
     "${_target_repo}" \
     "GL_DL_PRIVATE_TOKEN" \
-    "${_token}"
+    "${_token}" \
+    "private"
 }
 
 _bur_gpg_key_get() {
@@ -489,14 +490,28 @@ _bur_gpg_key_set() {
     _target_namespace="${1}" \
     _target_repo="${2}" \
     _git_service="${3}" \
-    _bur_gpg_key
+    _bur_gpg_key \
+    _key_encoded
   _bur_gpg_key_get \
     "${_target_namespace}"
+  _key_encoded="$(
+    echo \
+      "${_bur_gpg_key}" |
+      base64 \
+        -w0)"
   "_${_git_service}_env_set" \
     "${_target_namespace}" \
     "${_target_repo}" \
     "BUR_GPG_KEY" \
-    "${_bur_gpg_key}"
+    "${_key_encoded}" \
+    "private"
+}
+
+_exists_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}"
+  _target_repo
 }
 
 _ci_check() {
@@ -532,7 +547,6 @@ _github_ci_check() {
       "${_target_namespace}" \
       "${_repo}")
   )
-  echo "${_secrets[*]}"
   if [[ " ${_secrets[*]} " != *" GL_DL_PRIVATE_TOKEN "* ]]; then
     _msg=(
       "Missing secret github.com"
@@ -561,6 +575,10 @@ _github_ci_check() {
       "${_repo}" \
       "github"
   fi
+  _bur_gpg_key_set \
+    "${_target_namespace}" \
+    "${_repo}" \
+    "github"
 }
 
 _gitlab_ci_check() {
@@ -574,7 +592,7 @@ _gitlab_ci_check() {
   _msg=(
     "Checking Gitlab.com"
     "'${_target_namespace}/${_repo}'"
-    "environment."
+    "continuous integration environment."
   )
   _msg_info \
     "${_msg[*]}"
@@ -607,7 +625,9 @@ _gitlab_env_get() {
   if (( 2 < "${#}" )); then
     _key="${3}"
   fi
-  _token_private_get
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
   _project_id="$( \
     _project_id_get \
       "${_namespace}" \
@@ -648,6 +668,13 @@ _gitlab_env_get() {
       "${_value}"
   elif [[ "${_message}" == "404 Variable Not Found" ]]; then
     return 1
+  elif [[ "${_message}" == "404 Project Not Found" ]]; then
+    _msg_error \
+      "Check Project ID function."  \
+      1
+  else
+    _msg_info \
+      "${_variable}"
   fi
 }
 
@@ -684,17 +711,21 @@ _gitlab_env_set() {
     _repo="${2}" \
     _key="${3}" \
     _value="${4}" \
+    _type="${5}" \
     _project_id \
     _curl_opts=() \
     _api \
     _url \
     _token_private \
-    _token
+    _token \
+    _out
   _project_id="$( \
     _project_id_get \
       "${_namespace}" \
       "${_repo}")"
-  _token_private_get
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
   _token="PRIVATE-TOKEN: $( \
     cat \
       "${_token_private}")"
@@ -704,10 +735,16 @@ _gitlab_env_set() {
     --header
       "${_token}"
     --form
-      "key=${_key}"
+      key="${_key}"
     --form
-      "value=${_value}"
+      value="${_value}"
   )
+  if [[ "${_type}" == "private" ]]; then
+    _curl_opts+=(
+      --form
+        "masked_and_hidden=true"
+    )
+  fi
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/variables"
   _variable="$(
@@ -717,22 +754,36 @@ _gitlab_env_set() {
       "${_key}" || \
       true)"
   if [[ "${_variable}" != "" ]]; then
+    echo "${_variable}"
+    _msg=(
+      "Updating variable"
+      "'${_key}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
     _curl_opts+=(
       --request
         "PUT"
     )
-    curl \
-      "${_curl_opts[@]}" \
-      "${_url}/${_key}"
+    _url="${_url}/${_key}"
   elif [[ "${_variable}" == "" ]]; then
+    _msg=(
+      "Writing variable"
+      "'${_key}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
     _curl_opts+=(
       --request
         "POST"
     )
+  fi
+  _out="$(
     curl \
       "${_curl_opts[@]}" \
-      "${_url}"
-  fi
+      "${_url}")"
+  echo \
+    "Curl output: '${_out}'"
 }
 
 _project_id_get() {
@@ -742,7 +793,9 @@ _project_id_get() {
     _curl_opts=() \
     _token_private \
     _token
-  _token_private_get
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
   _token="PRIVATE-TOKEN: $( \
     cat \
       "${_token_private}")"
@@ -754,7 +807,7 @@ _project_id_get() {
   )
   curl \
     "${_curl_opts[@]}" \
-    "https://gitlab.com/api/v4/projects/${_namespace}%2F${_repo}-ur" | \
+    "https://gitlab.com/api/v4/projects/${_namespace}%2F${_repo}" | \
     jq \
       '.id'
 }
@@ -779,7 +832,7 @@ _artifacts_get() {
   _project_id="$( \
     _project_id_get \
       "${_namespace}" \
-      "${_repo}")"
+      "${_repo}-ur")"
   _gitlab_job_latest_get \
     "${_project_id}"
   _msg_info \
@@ -1047,7 +1100,7 @@ _gitlab_releases_retrieve() {
   _project_id="$( \
     _project_id_get \
       "${_namespace}" \
-      "${_repo}")"
+      "${_repo}-ur")"
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/releases"
   _gl_dl_opts+=(
@@ -1065,12 +1118,34 @@ _log_get() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
+    _git_service
+  _git_service="gitlab"
+  if (( 2 < "${#}" )); then
+    _git_service="${3}"
+  fi
+  "_${_git_service}_log_get" \
+    "${_namespace}" \
+    "${_repo}"
+}
+
+_gitlab_log_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
     _project_id \
     _msg=()
+  _msg=(
+    "Getting logs for"
+    "project '${_repo}'"
+    "on gitlab.com"
+    "namespace '${_namespace}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
   _project_id="$( \
     _project_id_get \
       "${_namespace}" \
-      "${_repo}")"
+      "${_repo}-ur")"
   _gitlab_job_latest_get \
     "${_project_id}"
   _msg=(
@@ -1078,7 +1153,7 @@ _log_get() {
   )
   _msg_info \
     "${_msg[*]}"
-  _gitlab_log_get \
+  _gitlab_job_log_get \
     "${_namespace}" \
     "${_repo}" \
     "${_job_latest}"
@@ -1096,7 +1171,7 @@ _release_check() {
   true
 }
 
-_gitlab_log_get() {
+_gitlab_job_log_get() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
@@ -1117,7 +1192,7 @@ _gitlab_log_get() {
   _project_id="$( \
     _project_id_get \
       "${_namespace}" \
-      "${_repo}")"
+      "${_repo}-ur")"
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/jobs/${_job_id}/trace"
   _gl_dl_opts+=(
@@ -1140,7 +1215,8 @@ _gitlab_jobs_get() {
     _msg=() \
     _token_private
   _token_private_get \
-    "gitlab.com"
+    "gitlab.com" \
+    "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
