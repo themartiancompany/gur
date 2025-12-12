@@ -61,7 +61,7 @@ _global_variables() {
     "life-package"
   )
   mirror_fields=(
-    "exists"
+    # "exists"
     "description"
     "homepage"
     "topics"

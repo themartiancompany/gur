@@ -63,6 +63,10 @@ Commands
 Keys
 ==========
 
+* ci                    Continuous Integration setup in mirror repository.
+* env                   Environment variables in a Gitlab mirror repository.
+* secrets               Secret environment varibales in a Github mirror repository.
+* log                   Returns latest CI log for a mirror repository.
 * repos                 Returns all Ur repos in the target namespace.
 * description           Description of mirror repository.
 * homepage              Homepage of a mirror repository.
@@ -111,6 +115,8 @@ See also
 ========
 
 * ur
+* gh
 * fur
+* gl-dl
 
 .. include:: variables.rst
