@@ -465,6 +465,8 @@ _bur_gpg_key_get() {
     _evm_gpg_opts+=(
       -N
         "${_bur_id}"
+      -t
+        "private"
     )
   fi
   _bur_gpg_key="$(
