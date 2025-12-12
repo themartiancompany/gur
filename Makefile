@@ -89,7 +89,7 @@ install-doc:
 
 install-man:
 
-	$(INSTALL_DIR) \
+	$(_INSTALL_DIR) \
 	  "$(MAN_DIR)/man1"
 	rst2man \
 	  "man/$(_PROJECT).1.rst" \
