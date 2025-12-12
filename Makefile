@@ -27,16 +27,24 @@ LIB_DIR=$(DESTDIR)$(PREFIX)/lib/$(_PROJECT)
 MAN_DIR?=$(DESTDIR)$(PREFIX)/share/man
 
 DOC_FILES=\
-  $(wildcard *.rst) \
-  $(wildcard *.md)
-SCRIPT_FILES=$(wildcard $(_PROJECT)/*)
+  $(wildcard \
+      *.rst) \
+  $(wildcard \
+      *.md)
+SCRIPT_FILES=\
+  $(wildcard \
+      $(_PROJECT)/*)
 
 all:
 
 check: shellcheck
 
 shellcheck:
-	shellcheck -s bash $(SCRIPT_FILES)
+
+	shellcheck \
+	  -s \
+	    "bash" \
+	  $(SCRIPT_FILES)
 
 install: install-scripts install-doc install-man
 
@@ -56,12 +64,22 @@ install-scripts:
 
 install-doc:
 
-	install -vDm 644 $(DOC_FILES) -t $(DOC_DIR)
+	$(_INSTALL_FILE) \
+	  $(DOC_FILES) \
+	  -t \
+	  $(DOC_DIR)
+	install \
+	  -vdm755 \
+	  "$(DOC_DIR)/docs"
+	$(_INSTALL_FILE) \
+	  "docs/"* \
+	  -t \
+	  "$(DOC_DIR)/docs"
+
 
 install-man:
 
-	install \
-	  -vdm755 \
+	$(INSTALL_DIR) \
 	  "$(MAN_DIR)/man1"
 	rst2man \
 	  "man/$(_PROJECT).1.rst" \

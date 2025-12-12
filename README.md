@@ -48,8 +48,6 @@ make \
   install
 ```
 
-#### Valid when I wake up later today
-
 The Gur has been officially published on the
 the uncensorable
 [Ur](
@@ -76,6 +74,18 @@ tools is hosted on
 
 Be aware the mirror could go offline any time as Github and more
 in general all HTTP resources are inherently unstable and censorable.
+
+## Documentation
+
+For a quick manual you can type
+
+```bash
+man \
+  "gur"
+```
+
+while a more complete documentation is
+in the `docs` directory.
 
 ## License
 
