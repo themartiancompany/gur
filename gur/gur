@@ -994,7 +994,7 @@ _gitlab_pipelines_get() {
     "${_cache_dir}/jobs.json"
 }
 
-_release_latest_get() {
+_gitlab_release_latest_get() {
   _tag="$( \
     cat \
       "${_cache_dir}/releases.json" | \
@@ -1048,11 +1048,11 @@ _gitlab_release_get() {
     -C
       "${_token_private}"
   )
-  _releases_retrieve \
+  _gitlab_releases_retrieve \
     "${_namespace}" \
     "${_repo}"
   if [[ "${_tag}" == "" ]]; then
-    _release_latest_get
+    _gitlab_release_latest_get
   fi
   _urls+=( $( \
     cat \
@@ -1077,7 +1077,7 @@ _gitlab_release_get() {
 _releases_get() {
     _namespace="${1}" \
     _repo="${2}"
-  _releases_retrieve \
+  _gitlab_releases_retrieve \
     "${_namespace}" \
     "${_repo}"
   cat \
