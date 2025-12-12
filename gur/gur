@@ -85,6 +85,9 @@ _requirements() {
   _check_cmd \
     "curl"
   _check_cmd \
+    "evm-gpg" \
+    "evm-gnupg"
+  _check_cmd \
     'gh'
   _check_cmd \
     'gl-dl'
