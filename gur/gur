@@ -40,6 +40,7 @@ _sourced \
 _global_variables() {
   run_date=""
   wallet_name=""
+  git_service=""
   target_namespace=""
   target_command=""
   target_key=""
@@ -61,7 +62,7 @@ _global_variables() {
     "life-package"
   )
   mirror_fields=(
-    # "exists"
+    "exists"
     "description"
     "homepage"
     "topics"
@@ -460,10 +461,14 @@ _gl_dl_token_set() {
 _bur_gpg_key_get() {
   local \
     _target_namespace="${1}" \
+    _git_service \
     _evm_gpg_opts=() \
     _msg=() \
     _bur_name
-  _bur_id="github.bur.${_target_namespace}"
+  if (( 1 < "${#}" )); then
+    _git_service="${2}"
+  fi
+  _bur_id="${_git_service}.bur.${_target_namespace}"
   if [[ "${quiet}" == "n" ]]; then
     _evm_gpg_opts+=(
       -N
@@ -475,18 +480,19 @@ _bur_gpg_key_get() {
   _bur_gpg_key="$(
     evm-gpg \
       "${_evm_gpg_opts[@]}" \
-      export)"
+      export || \
+      true)"
   if [[ "${_bur_gpg_key}" == "" ]]; then
-    # TODO:
-    #   Generate the key with
-    #   evm-gpg.
-    _msg=(
-      "No GPG key for bur wallet"
-      "'${_bur_name}."
-    )
-    _msg_error \
-      "${_msg[*]}" \
-      1
+    if [[ "${quiet}" == "n" ]]; then
+      _evm_gpg_opts+=(
+        -v
+      )
+    fi
+    evm-gpg \
+      "${_evm_gpg_opts[@]}" \
+      new \
+      "${_bur_id}" \
+      "'${_target_namespace}' bur '${_target_namespace}' builder signing key"
   fi
 }
 
@@ -498,7 +504,8 @@ _bur_gpg_key_set() {
     _bur_gpg_key \
     _key_encoded
   _bur_gpg_key_get \
-    "${_target_namespace}"
+    "${_target_namespace}" \
+    "${_git_service}"
   _key_encoded="$(
     echo \
       "${_bur_gpg_key}" |
@@ -514,9 +521,52 @@ _bur_gpg_key_set() {
 
 _exists_check() {
   local \
-    _target_namespace="${1}" \
-    _target_repo="${2}"
-  _target_repo
+    _namespace="${1}" \
+    _repo="${2}" \
+    _git_service \
+    _tmp_dir \
+    _git_opts=() \
+    _exists \
+    _msg=()
+  _git_service="github"
+  if (( 2 < "${#}" )); then
+    _git_service="${3}"
+  fi
+  _oldpwd="${PWD}"
+  _tmp_dir="$(
+    mktemp \
+      -d)"
+  cd \
+    "${_tmp_dir}"
+  if [[ "${_git_service}" == "github" ]]; then
+    _exists="$(
+      gh \
+        repo \
+          view \
+            "${_namespace}/${_repo}-ur" 2>"/dev/null" || \
+      true)"
+  elif [[ "${_git_service}" == "github" ]]; then
+    _exists="$( \
+      _project_id_get \
+        "${_namespace}" \
+        "${_repo}")"
+  fi
+  if [[ "${_exists}" == "" ]]; then
+    _msg=(
+      "Creating repository"
+      "${_repo}-ur."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ "${_exists}" != "" ]]; then
+    _msg=(
+      "Repository '${_repo}-ur'"
+      "found on '${_namespace}' namespace"
+      "on '${_git_service}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
 }
 
 _ci_check() {
@@ -1536,10 +1586,11 @@ _config_user_init \
 # shellcheck disable=SC2034
 while \
   getopts \
-    'N:W:cvh?' \
+    'm:N:W:cvh?' \
     arg; do
   case \
     "${arg}" in
+    m) override_git_service="${OPTARG}" ;;
     N) override_target_namespace="${OPTARG}" ;;
     W) override_cache_dir="${OPTARG}" ;;
     c) override_color="y" ;;
