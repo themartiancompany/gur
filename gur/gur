@@ -1494,6 +1494,7 @@ _set_overrides() {
 # $1: exit status number.
 _usage() {
   local \
+    _exit="${1}" \
     _usage_text
   IFS='' \
     read \
@@ -1559,7 +1560,7 @@ ENDUSAGETEXT
     '%s\n' \
     "${_usage_text}"
   exit \
-    "${1}"
+    "${_exit}"
 }
 
 _display_flags() {
@@ -1599,17 +1600,25 @@ while \
     arg; do
   case \
     "${arg}" in
-    m) override_git_service="${OPTARG}" ;;
-    N) override_target_namespace="${OPTARG}" ;;
-    W) override_cache_dir="${OPTARG}" ;;
-    c) override_color="y" ;;
-    v) override_quiet="n" ;;
-    h|?) _set_overrides && \
-         _usage \
-           0 ;;
+    m)
+      override_git_service="${OPTARG}" ;;
+    N)
+      override_target_namespace="${OPTARG}" ;;
+    W)
+      override_cache_dir="${OPTARG}" ;;
+    c)
+      override_color="y" ;;
+    v)
+      override_quiet="n" ;;
+    h|?)
+      _set_overrides
+      _usage \
+        0 ;;
     *)
+    _msg=(
+      "Invalid argument '${arg}'.")
     _msg_error \
-      "Invalid argument '${arg}'" \
+      "${_msg[*]}" \
       0
     _usage \
       1
@@ -1621,8 +1630,11 @@ shift \
     OPTIND - 1 \
   ))
 if (( $# < 1 )); then
+  _msg=(
+    "No command given."
+  )
   _msg_error \
-    "No command given." \
+    "${_msg[*]}"
     0
   _set_overrides
   _usage \
