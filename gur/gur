@@ -21,14 +21,12 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-_bin="$( \
+_bin="$(
   dirname \
-    "$( \
-      command \
+    "$(command \
         -v \
 	  "env")")"
-_lib="$( \
-  realpath \
+_lib="$(realpath \
     "${_bin}/../lib")"
 _crash_bash="${_lib}/libcrash-bash/crash-bash"
 _sourced \
@@ -131,7 +129,7 @@ _github_repos_get() {
     _lib \
     _msg=() \
     _token_private
-  _lib="$( \
+  _lib="$(
     _get_lib)"
   _repos_get_bin="${_lib}/gur/repos-get"
   _token_private_get \
@@ -149,13 +147,13 @@ _github_repos_get() {
   )
   _msg_info \
     "${_msg[*]}"
-  _repos_urls=( $( \
+  _repos_urls=( $(
     "${_repos_get_bin}" \
       "${_repos_get_opts[@]}" \
       "${_namespace}")
   )
   for _url in "${_repos_urls[@]}"; do
-    _repo="$( \
+    _repo="$(
       basename \
         "${_url}")"
     if [[ "${_repo}" == *"-ur" ]]; then
@@ -191,7 +189,7 @@ _github_description_get() {
     _target_namespace="${1}" \
     _target_repo="${2}" \
     _description
-  _description="$( \
+  _description="$(
     gh \
       repo \
       view \
@@ -209,7 +207,7 @@ _github_homepage_get() {
     _target_namespace="${1}" \
     _target_repo="${2}" \
     _homepage
-  _homepage="$( \
+  _homepage="$(
     gh \
       repo \
       view \
@@ -260,7 +258,7 @@ _topics_get() {
     _target_namespace="${1}" \
     _target_repo="${2}" \
     _topics=()
-  _topics=( $( \
+  _topics=( $(
     gh \
       repo \
       view \
@@ -339,7 +337,7 @@ _github_description_check() {
   )
   _msg_info \
     "${_msg[*]}"
-  _description="$( \
+  _description="$(
     _github_description_get \
       "${_target_namespace}" \
       "${_target_repo}-ur")"
@@ -372,7 +370,7 @@ _github_homepage_check() {
   )
   _msg_info \
     "${_msg[*]}"
-  _homepage="$( \
+  _homepage="$(
     _homepage_get \
       "${_target_namespace}" \
       "${_target_repo}-ur")"
@@ -408,7 +406,7 @@ _github_topics_check() {
   )
   _msg_info \
     "${_msg[*]}"
-  _topics=( $( \
+  _topics=( $(
     _topics_get \
       "${_target_namespace}" \
       "${_repo}")
@@ -447,7 +445,7 @@ _gl_dl_token_set() {
   _token_private_get \
     "${_git_domain}" \
     "${_target_namespace}"
-  _token="$( \
+  _token="$(
     cat \
       "${_token_private}")"
   "_${_git_service}_env_set" \
@@ -546,7 +544,7 @@ _exists_check() {
             "${_namespace}/${_repo}-ur" 2>"/dev/null" || \
       true)"
   elif [[ "${_git_service}" == "github" ]]; then
-    _exists="$( \
+    _exists="$(
       _project_id_get \
         "${_namespace}" \
         "${_repo}")"
@@ -588,7 +586,9 @@ _github_ci_check() {
     _secrets=() \
     _secrets_missing=() \
     _bur_gpg_key \
-    _repo
+    _repo \
+    _git_service
+  _git_service="github"
   _repo="${_target_repo}-ur"
   _msg=(
     "Checking Github's"
@@ -597,7 +597,7 @@ _github_ci_check() {
   )
   _msg_info \
     "${_msg[*]}"
-  _secrets=( $( \
+  _secrets=( $(
     _github_secrets_get \
       "${_target_namespace}" \
       "${_repo}")
@@ -614,8 +614,8 @@ _github_ci_check() {
     _gl_dl_token_set \
       "${_target_namespace}" \
       "${_repo}" \
-      "github.com" \
-      "github"
+      "${_git_service}.com" \
+      "${_git_service}"
   fi
   if [[ " ${_secrets[*]} " != *" BUR_GPG_KEY "* ]]; then
     _msg=(
@@ -628,12 +628,12 @@ _github_ci_check() {
     _bur_gpg_key_set \
       "${_target_namespace}" \
       "${_repo}" \
-      "github"
+      "${_git_service}"
   fi
   _bur_gpg_key_set \
     "${_target_namespace}" \
     "${_repo}" \
-    "github"
+    "${_git_service}"
 }
 
 _gitlab_ci_check() {
@@ -683,11 +683,11 @@ _gitlab_env_get() {
   _token_private_get \
     "gitlab.com" \
     "${_namespace}"
-  _project_id="$( \
+  _project_id="$(
     _project_id_get \
       "${_namespace}" \
       "${_repo}")"
-  _token="PRIVATE-TOKEN: $( \
+  _token="PRIVATE-TOKEN: $(
     cat \
       "${_token_private}")"
   _curl_opts+=(
@@ -774,14 +774,14 @@ _gitlab_env_set() {
     _token_private \
     _token \
     _out
-  _project_id="$( \
+  _project_id="$(
     _project_id_get \
       "${_namespace}" \
       "${_repo}")"
   _token_private_get \
     "gitlab.com" \
     "${_namespace}"
-  _token="PRIVATE-TOKEN: $( \
+  _token="PRIVATE-TOKEN: $(
     cat \
       "${_token_private}")"
   _curl_opts+=(
@@ -851,7 +851,7 @@ _project_id_get() {
   _token_private_get \
     "gitlab.com" \
     "${_namespace}"
-  _token="PRIVATE-TOKEN: $( \
+  _token="PRIVATE-TOKEN: $(
     cat \
       "${_token_private}")"
   _curl_opts+=(
@@ -884,7 +884,7 @@ _artifacts_get() {
       -v
     )
   fi
-  _project_id="$( \
+  _project_id="$(
     _project_id_get \
       "${_namespace}" \
       "${_repo}-ur")"
@@ -1026,7 +1026,7 @@ _gitlab_pipelines_get() {
   gl-dl \
     "${_gl_dl_opts[@]}" \
     "https://gitlab.com/api/v4/projects/${_project_id}/pipelines?per_page=20&sort=desc"
-  _jobs+=( $( \
+  _jobs+=( $(
     cat \
       "${_cache_dir}/pipelines.json" | \
       jq \
@@ -1045,7 +1045,7 @@ _gitlab_pipelines_get() {
 }
 
 _gitlab_release_latest_get() {
-  _tag="$( \
+  _tag="$(
     cat \
       "${_cache_dir}/releases.json" | \
       jq \
@@ -1104,7 +1104,7 @@ _gitlab_release_get() {
   if [[ "${_tag}" == "" ]]; then
     _gitlab_release_latest_get
   fi
-  _urls+=( $( \
+  _urls+=( $(
     cat \
       "${_cache_dir}/releases.json" | \
       jq \
@@ -1112,7 +1112,7 @@ _gitlab_release_get() {
         '.[] | select(.tag_name == "'${_tag}'").assets.links.[].direct_asset_url')
   )
   for _url in "${_urls[@]}"; do
-    _file="$( \
+    _file="$(
       basename \
         "${_url}")"
     _output_file="$(pwd)/${_file}"
@@ -1152,7 +1152,7 @@ _gitlab_releases_retrieve() {
       -v
     )
   fi
-  _project_id="$( \
+  _project_id="$(
     _project_id_get \
       "${_namespace}" \
       "${_repo}-ur")"
@@ -1197,7 +1197,7 @@ _gitlab_log_get() {
   )
   _msg_info \
     "${_msg[*]}"
-  _project_id="$( \
+  _project_id="$(
     _project_id_get \
       "${_namespace}" \
       "${_repo}-ur")"
@@ -1244,7 +1244,7 @@ _gitlab_job_log_get() {
       -v
     )
   fi
-  _project_id="$( \
+  _project_id="$(
     _project_id_get \
       "${_namespace}" \
       "${_repo}-ur")"
@@ -1286,7 +1286,7 @@ _gitlab_jobs_get() {
   gl-dl \
     "${_gl_dl_opts[@]}" \
     "https://gitlab.com/api/v4/projects/${_project_id}/jobs?per_page=20"
-  _jobs+=( $( \
+  _jobs+=( $(
     cat \
       "${_cache_dir}/jobs.json" | \
       jq \
@@ -1306,17 +1306,18 @@ _gitlab_jobs_get() {
 
 _gur() {
   local \
-    _target_namespace="${1}" \
-    _cache_dir="${2}" \
-    _target_command="${3}" \
-    _target_key="${4}" \
-    _target_value="${5}" \
+    _git_service="${1}" \
+    _target_namespace="${2}" \
+    _cache_dir="${3}" \
+    _target_command="${4}" \
+    _target_key="${5}" \
+    _target_value="${6}" \
     _repos=() \
     _target_field \
     _target_repo \
     _command_args=()
   shift \
-    5
+    6
   _command_args+=(
     "$@"
   )
@@ -1374,7 +1375,7 @@ _gur() {
         )
         _msg_info \
           "${_msg[*]}"
-        _repos+=( $( \
+        _repos+=( $(
           cat \
             "${_cache_dir}/mirrors.db")
         )
@@ -1387,7 +1388,7 @@ _gur() {
       _msg_info \
         "${_msg[*]}"
       for _target_repo in "${_repos[@]}"; do
-        _checked="$( \
+        _checked="$(
           cat \
             "${_cache_dir}/checked.db" | \
             grep \
@@ -1475,6 +1476,10 @@ _set_overrides() {
     "date" \
     "$(_get_date_human)"
   _set_override \
+    "git" \
+    "service" \
+    "github"
+  _set_override \
     "target" \
     "namespace" \
     "themartiancompany"
@@ -1536,10 +1541,13 @@ Usage:
                             If not provided gets the latest.
 
   options:
+     -m <git-service>       Git service, can be 'github'
+                            or 'gitlab'.
+                            Default: ${git_service}
      -N <namespace>         Target namespace for the Ur
                             repositories.
                             Default: ${target_namespace}
-     -W <cache_dir>         Location where to temporary store
+     -W <cache-dir>         Location where to temporary store
                             the downloaded resource chunks.
                             Default: ${cache_dir}
 
@@ -1571,6 +1579,7 @@ _display_flags() {
 _show_config() {
   _msg_info "${app_name} configuration"
   _msg_info "                       Run date:   ${run_date}"
+  _msg_info "                    Git service:   ${git_service}"
   _msg_info "               Target namespace:   ${target_namespace}"
   _msg_info "                Cache directory:   ${cache_dir}"
   _msg_info "                 Target command:   ${target_command}"
@@ -1637,6 +1646,7 @@ command_args=(
 _set_overrides
 _show_config
 app_opts=(
+  "${git_service}"
   "${target_namespace}"
   "${cache_dir}"
   "${target_command}"
