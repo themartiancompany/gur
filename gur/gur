@@ -64,12 +64,14 @@ _global_variables() {
     "description"
     "homepage"
     "topics"
+    "namespace_id"
     "project_id"
     "secrets"
     "artifacts"
     "ci"
     "env"
     "log"
+    "quota"
     "releases"
     "release"
   )
@@ -115,20 +117,26 @@ _get_conf_dir_path() {
 _repos_get() {
   local \
     _namespace="${1}"
-  _github_repos_get
+  _github_repos_get \
+    "${_namespace}"
 }
 
 _github_repos_get() {
   local \
     _namespace="${1}" \
-    _repos_urls=() \
     _url \
     _repo \
+    _repos=() \
+    _repos_array=() \
+    _repos_file \
     _repos_get_bin \
     _repos_get_opts=() \
+    _repos_urls=() \
     _lib \
     _msg=() \
-    _token_private
+    _token_private \
+    _repos_local
+  _repos_file="${_cache_dir}/${_namespace}/github/repos.db"
   _lib="$(
     _get_lib)"
   _repos_get_bin="${_lib}/gur/repos-get"
@@ -157,11 +165,17 @@ _github_repos_get() {
       basename \
         "${_url}")"
     if [[ "${_repo}" == *"-ur" ]]; then
-      _repos+=(
+      _repos_array+=(
         "${_repo%-ur}"
       )
     fi
   done
+  if [[ -e "${_repos_file}" ]]; then
+    _repos_array+=( $(
+      cat \
+        "${_repos_file}")
+    )
+  fi
   _msg=(
     "Found '${#_repos[@]}'"
     "Ur applications"
@@ -178,11 +192,113 @@ _github_repos_get() {
   )
   _msg_info \
     "${_msg[*]}"
+  _array_set \
+    "_repos_array" \
+    "_repos"
   printf \
     '%s\n' \
     "${_repos[@]}" > \
-    "${_cache_dir}/mirrors.db"
+    "${_repos_file}"
 }
+
+_gitlab_repos_get() {
+  local \
+    _namespace="${1}" \
+    _url \
+    _repo \
+    _repos=() \
+    _repos_array=() \
+    _repos_file \
+    _repos_get_bin \
+    _repos_get_opts=() \
+    _repos_urls=() \
+    _lib \
+    _msg=() \
+    _token \
+    _token_private
+  _repos_file="${_cache_dir}/${_namespace}/gitlab/repos.db"
+  _token_private_get \
+    "github.com" \
+    "${_namespace}"
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/namespaces"
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
+  _token="PRIVATE-TOKEN: $(
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    --request
+      "GET"
+    -XGET
+    --header
+      "${_token}"
+  )
+  _namespaces="$(
+    curl \
+      "${_curl_opts[@]}" \
+      "${_url}")"
+
+  _repos_get_opts+=(
+    --key
+      "${_token_private}"
+  )
+  _msg=(
+    "Retrieving list of"
+    "Ur mirrors for"
+    "'${_namespace}' namespace"
+    "from Github."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _repos_urls=( $(
+    "${_repos_get_bin}" \
+      "${_repos_get_opts[@]}" \
+      "${_namespace}")
+  )
+  for _url in "${_repos_urls[@]}"; do
+    _repo="$(
+      basename \
+        "${_url}")"
+    if [[ "${_repo}" == *"-ur" ]]; then
+      _repos_array+=(
+        "${_repo%-ur}"
+      )
+    fi
+  done
+  if [[ -e "${_repos_file}" ]]; then
+    _repos_array+=( $(
+      cat \
+        "${_repos_file}")
+    )
+  fi
+  _msg=(
+    "Found '${#_repos[@]}'"
+    "Ur applications"
+    "HTTP mirrors."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _msg=(
+    "Saving list locally"
+    "because Github API limit"
+    "is ridiculous for a company"
+    "which gives people free computers"
+    "to build stuff."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _array_set \
+    "_repos_array" \
+    "_repos"
+  printf \
+    '%s\n' \
+    "${_repos[@]}" > \
+    "${_repos_file}"
+}
+
 
 _github_description_get() {
   local \
@@ -491,6 +607,11 @@ _bur_gpg_key_get() {
       new \
       "${_bur_id}" \
       "'${_target_namespace}' bur '${_target_namespace}' builder signing key"
+    _bur_gpg_key="$(
+      evm-gpg \
+        "${_evm_gpg_opts[@]}" \
+        export || \
+        true)"
   fi
 }
 
@@ -517,16 +638,248 @@ _bur_gpg_key_set() {
     "private"
 }
 
+_github_repo_new() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _gh_opts=()
+  _gh_opts+=(
+    --private
+    "${_namespace}/${_repo}"
+  )
+  gh \
+    repo \
+      create \
+      "${_gh_opts[@]}"
+}
+
+_namespaces_get() {
+  local \
+    _namespace="${1}" \
+    _api \
+    _curl_opts=() \
+    _token \
+    _token_private \
+    _url
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/namespaces"
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
+  _token="PRIVATE-TOKEN: $(
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    --request
+      "GET"
+    -XGET
+    --header
+      "${_token}"
+  )
+  _namespaces="$(
+    curl \
+      "${_curl_opts[@]}" \
+      "${_url}" || \
+      true)"
+  if [[ "${_namespace[*]}" == "" ]]; then
+    _msg=(
+      "Found no namespaces"
+      "corresponding to user"
+      "'${_namespace}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+
+}
+
+_namespace_id_get() {
+  local \
+    _namespace="${1}" \
+    _api \
+    _curl_opts=() \
+    _namespaces \
+    _token \
+    _token_private \
+    _url
+  _namespaces_get \
+    "${_namespace}" || \
+    true
+  _namespace_id="$(
+    echo \
+      "${_namespaces}" |
+      jq \
+        '.[] | select(.path=="'${_namespace}'") | .id')"
+}
+
+_gitlab_repo_new() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _api \
+    _curl_opts=() \
+    _namespace_id \
+    _token \
+    _token_private \
+    _url
+  _namespace_id_get \
+    "${_namespace}" || \
+    true
+  echo "ns ${_namespace} ${_namespace_id}"
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/projects"
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
+  _token="PRIVATE-TOKEN: $(
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    --request
+      "POST"
+    -XGET
+    --header
+      "${_token}"
+    --header
+      "Content-Type: application/json"
+    --data
+      '{ "name":
+           "'${_repo}'",
+           "path":
+             "'${_repo}'",
+           "namespace_id":
+             "'${_namespace_id}'",
+           "initialize_with_readme":
+             "false" }'
+  )
+  _repo_new_out="$(
+    curl \
+      "${_curl_opts[@]}")"
+}
+
+_repo_new() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _git_service
+  _git_service="github"
+  if (( 2 < "${#}" )); then
+    _git_service="${3}"
+  fi
+  "_${_git_service}_repo_new" \
+    "${_namespace}" \
+    "${_repo}"
+}
+
+_quota_check() {
+  local \
+    _namespace_user="${1}" \
+    _namespace_target="${2}" \
+    _curl_opts=() \
+    _graphql_opts=() \
+    _api \
+    _bearer \
+    _graphql \
+    _namespace_id \
+    _url \
+    _token_private \
+    _token
+  _graphql="https://gitlab.com/api/graphql"
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace_user}"
+  _token="PRIVATE-TOKEN: $(
+    cat \
+      "${_token_private}")"
+  _bearer="Authorization: Bearer $(
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    -XGET
+    --header
+      "${_token}"
+  )
+  _namespace_id_get \
+    "${_namespace_target}"
+  _quota_query \
+    "${_namespace_id}"
+  echo "${_query}"
+  _graphql_opts+=(
+    # --verbose
+    --request
+      "POST"
+    --url
+      "${_graphql}"
+    --silent
+    -XGET
+    --header
+      "${_bearer}"
+    --header
+      "Content-Type: application/json"
+    --data
+      "${_query}"
+  )
+  # _api="https://gitlab.com/api/v4"
+  # _url="${_api}/groups"
+  # _variable="$(
+  #   curl \
+  #     "${_curl_opts[@]}" \
+  #     "${_url}")"
+  # echo \
+  #   "${_variable}" |
+  #     jq \
+  #       "."
+  curl \
+    "${_graphql_opts[@]}" |
+    jq \
+      "."
+  # _variable="$(
+  #   curl \
+  #     "${_graphql_opts[@]}" |
+  #     jq \
+  #       ".")"
+  # echo \
+  #   "${_variable}"
+  # _message="$(
+  #   echo \
+  #     "${_variable}" |
+  #     jq \
+  #       --raw-output \
+  #       ".")"
+  # _value="$(
+  #   echo \
+  #     "${_variable}" |
+  #     jq \
+  #       --raw-output \
+  #       ".value")"
+  # if [[ "${_value}" != "" &&
+  #       "${_value}" != "null" ]]; then
+  #   echo \
+  #     "${_value}"
+  # elif [[ "${_message}" == "404 Variable Not Found" ]]; then
+  #   return 1
+  # elif [[ "${_message}" == "404 Project Not Found" ]]; then
+  #   _msg_error \
+  #     "Check Project ID function."  \
+  #     1
+  # else
+  #   _msg_info \
+  #     "${_variable}"
+  # fi
+}
+
 _exists_check() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
-    _git_service \
     _tmp_dir \
     _git_opts=() \
     _exists \
     _msg=()
-  _git_service="github"
   if (( 2 < "${#}" )); then
     _git_service="${3}"
   fi
@@ -537,13 +890,18 @@ _exists_check() {
   cd \
     "${_tmp_dir}"
   if [[ "${_git_service}" == "github" ]]; then
+    gh \
+      auth \
+        switch \
+        -u \
+          "${_namespace}"
     _exists="$(
       gh \
         repo \
           view \
             "${_namespace}/${_repo}-ur" 2>"/dev/null" || \
       true)"
-  elif [[ "${_git_service}" == "github" ]]; then
+  elif [[ "${_git_service}" == "gitlab" ]]; then
     _exists="$(
       _project_id_get \
         "${_namespace}" \
@@ -556,6 +914,10 @@ _exists_check() {
     )
     _msg_info \
       "${_msg[*]}"
+    _repo_new \
+      "${_namespace}" \
+      "${_repo}-ur" \
+      "${_git_service}"
   elif [[ "${_exists}" != "" ]]; then
     _msg=(
       "Repository '${_repo}-ur'"
@@ -1315,16 +1677,22 @@ _gur() {
     _repos=() \
     _target_field \
     _target_repo \
-    _command_args=()
+    _command_args=() \
+    _msg=()
   shift \
     6
   _command_args+=(
     "$@"
   )
+  _namespace_id_get \
+    "themartiancompany"
   if [[ "${_target_command}" == "get" ]]; then
     if [[ " ${_target_key} " == "" ]]; then
+      _msg=(
+        "A field must be provided."
+      )
       _msg_error \
-        "A field must be provided." \
+        "${_msg[*]}" \
         1
     fi
     if [[ "${_target_key}" == "repos" ]]; then
@@ -1333,8 +1701,11 @@ _gur() {
       echo \
         "${_repos[@]}"
     elif [[ " ${_target_value} " == "" ]]; then
+      _msg=(
+        "A repository must be provided."
+        )
       _msg_error \
-        "A repository must be provided." \
+        "${_msg[*]}" \
         1
     fi
     if [[ "${_target_key}" != "repos" ]]; then
@@ -1405,7 +1776,8 @@ _gur() {
           for _field in "${mirror_fields[@]}"; do
             "_${_field}_check" \
               "${_target_namespace}" \
-              "${_target_repo}"
+              "${_target_repo}" \
+              "${_git_service}"
           done
           echo \
             "${_target_repo}" >> \
@@ -1425,11 +1797,15 @@ _gur() {
       for _target_repo in "${_repos[@]}"; do
         "_${_target_field}_check" \
           "${_target_namespace}" \
-          "${_target_repo}"
+          "${_target_repo}" \
+          "${_git_service}"
       done
     else
+      _msg=(
+        "Unknown field '${_target_key}'."
+      )
       _msg_error \
-        "Unknown field '${_target_key}'." \
+        "${_msg[*]}" \
         1
     fi
   else
@@ -1488,6 +1864,41 @@ _set_overrides() {
     "name" \
     "${target_namespace}"
   _cache_dir_auto_detect
+}
+
+_quota_query() {
+  local \
+    _namespace_id="${1}" \
+    _mm
+  _mm="gid://gitlab/Namespace/${_namespace_id}"
+  _test=(
+    "{"
+      'ciMinutesUsage(namespaceId: \"'${_mm}'\", first:1) {'
+        "nodes {"
+          "month"
+          "monthIso8601"
+          "minutes"
+          "projects {"
+            "nodes {"
+              "minutes"
+              "project {"
+                "id" 
+                "name"
+              "}"
+            "}"
+          "}"
+         "}"
+      "}"
+    "}"
+  )
+  IFS='' \
+    read \
+      -r \
+      -d '' \
+      _query << \
+        ENDQUERYTEXT || true
+{ "query": "query ${_test[*]}" }
+ENDQUERYTEXT
 }
 
 # Show help usage, with an exit status.
