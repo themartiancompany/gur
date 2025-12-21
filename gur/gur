@@ -807,7 +807,6 @@ _quota_check() {
     "${_namespace_target}"
   _quota_query \
     "${_namespace_id}"
-  echo "${_query}"
   _graphql_opts+=(
     # --verbose
     --request
@@ -823,20 +822,10 @@ _quota_check() {
     --data
       "${_query}"
   )
-  # _api="https://gitlab.com/api/v4"
-  # _url="${_api}/groups"
-  # _variable="$(
-  #   curl \
-  #     "${_curl_opts[@]}" \
-  #     "${_url}")"
-  # echo \
-  #   "${_variable}" |
-  #     jq \
-  #       "."
   curl \
     "${_graphql_opts[@]}" |
     jq \
-      "."
+      ".data.ciMinutesUsage.nodes.[].minutes"
   # _variable="$(
   #   curl \
   #     "${_graphql_opts[@]}" |
@@ -1257,6 +1246,8 @@ _artifacts_get() {
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/jobs/${_job_latest}/artifacts"
   _gl_dl_opts+=(
+    -n
+      "${_namespace}"
     -o
       "${_cache_dir}/artifacts.zip"
     -f
@@ -1380,6 +1371,8 @@ _gitlab_pipelines_get() {
     )
   fi
   _gl_dl_opts+=(
+    -n
+      "${_target_namespace}"
     -o
       "${_cache_dir}/pipelines.json" 
     -C
@@ -1457,6 +1450,8 @@ _gitlab_release_get() {
     )
   fi
   _gl_dl_opts+=(
+    -n
+      "${_namespace}"
     -C
       "${_token_private}"
   )
@@ -1521,6 +1516,8 @@ _gitlab_releases_retrieve() {
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/releases"
   _gl_dl_opts+=(
+    -n
+      "${_namespace}"
     -C
       "${_token_private}"
     -o
@@ -1613,6 +1610,8 @@ _gitlab_job_log_get() {
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/jobs/${_job_id}/trace"
   _gl_dl_opts+=(
+    -n
+      "${_namespace}"
     -C
       "${_token_private}"
     -o
@@ -1640,6 +1639,8 @@ _gitlab_jobs_get() {
     )
   fi
   _gl_dl_opts+=(
+    -n
+      "${_namespace}"
     -C
       "${_token_private}"
     -o
@@ -1684,8 +1685,6 @@ _gur() {
   _command_args+=(
     "$@"
   )
-  _namespace_id_get \
-    "themartiancompany"
   if [[ "${_target_command}" == "get" ]]; then
     if [[ " ${_target_key} " == "" ]]; then
       _msg=(
