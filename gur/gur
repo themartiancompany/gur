@@ -1734,16 +1734,19 @@ _get_cmd() {
 
 _check_cmd() {
   local \
-    _cache_dir="${1}" \
+    _git_service="${1}"
     _target_namespace="${2}" \
     _target_key="${3}" \
     _target_value="${4}" \
-    _target_repo \
+    _cache_dir="${5}" \
+    _checked \
+    _field \
+    _repo \
     _msg=()
   if [[ "${_target_value}" != "" ]]; then
-    _target_repo="${_target_value}"
+    _repo="${_target_value}"
     _repos+=(
-      "${_target_repo}"
+      "${_repo}"
     )
   elif [[ "${_target_value}" == "" ]]; then
     _msg=(
@@ -1769,6 +1772,56 @@ _check_cmd() {
       )
     fi
   fi
+  if [[ "${_target_key}" == "" ]]; then
+    _msg=(
+      "No field selected, checking all."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    for _repo in "${_repos[@]}"; do
+      _checked="$(
+        cat \
+          "${_cache_dir}/checked.db" | \
+          grep \
+            "${_repo}" || \
+          true)"
+      if [[ "${_checked}" == "" ]]; then
+        _msg=(
+          "Mirror for package"
+          "'${_repo}'"
+          "unchecked, checking now."
+        )
+        _msg_info \
+          "${_msg[*]}"
+        for _field in "${mirror_fields[@]}"; do
+          "_${_field}_check" \
+            "${_target_namespace}" \
+            "${_repo}" \
+            "${_git_service}"
+        done
+        echo \
+          "${_repo}" >> \
+          "${_cache_dir}/checked.db"
+      elif [[ "${_checked}" != "" ]]; then
+        _msg=(
+          "Mirror for package"
+          "'${_repo}'"
+          "already checked, skipping."
+        )
+        _msg_info \
+          "${_msg[*]}"
+      fi
+    done
+  elif [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
+    _target_field="${_target_key}"
+    for _repo in "${_repos[@]}"; do
+      "_${_target_field}_check" \
+        "${_target_namespace}" \
+        "${_repo}" \
+        "${_git_service}"
+    done
+  else
+    _msg=(
 }
 
 _gur() {
