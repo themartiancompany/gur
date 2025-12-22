@@ -728,7 +728,6 @@ _gitlab_repo_new() {
   _namespace_id_get \
     "${_namespace}" || \
     true
-  echo "ns ${_namespace} ${_namespace_id}"
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects"
   _token_private_get \
@@ -780,6 +779,8 @@ _quota_get() {
     _namespace_user="${1}" \
     _namespace_target="${2}" \
     _git_service
+  echo \
+    "$@"
   _git_service="gitlab"
   if (( 2 < "${#}" )); then
     _git_service="${3}"
@@ -1212,7 +1213,6 @@ _gitlab_env_set() {
       "${_key}" || \
       true)"
   if [[ "${_variable}" != "" ]]; then
-    echo "${_variable}"
     _msg=(
       "Updating variable"
       "'${_key}'."
@@ -1323,9 +1323,8 @@ _artifacts_get() {
     "${_cache_dir}/artifacts.zip"
   for _artifact \
     in "./"*; do
-    echo \
-      "$(basename \
-           "${_artifact}")"
+    basename \
+      "${_artifact}"
     mv \
       "${_artifact}" \
       "${_old_pwd}"
@@ -1760,6 +1759,7 @@ _gur_get() {
     _namespace_user="${_target_namespace}"
     _namespace_target="${_target_value}"
     for _service in "${_git_services[@]}"; do
+      echo "${_git_services[@]}"
       _quota_get \
         "${_target_namespace}" \
         "${_target_value}" \
@@ -1894,16 +1894,16 @@ _gur() {
     _command_args=() \
     _msg=() \
     _service
+  shift \
+    6
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
-    shift
     _git_services+=(
       "${1}"
     ) 
+    shift
   done
-  shift \
-    6
   _command_args+=(
     "$@"
   )
@@ -1950,28 +1950,49 @@ _cache_dir_auto_detect() {
     "${_cache_dir}"
 }
 
-# _github_auto_detect() {
-# 
-# }
+_github_auto_detect() {
+  local \
+    _user \
+    _hosts
+  _hosts="${HOME}/.config/gh/hosts.yml"
+  if [[ -e "${HOME}/.config/gh/hosts.yml" ]]; then
+    _user="$(
+      cat \
+        "${_hosts}" |
+        grep \
+          "user: " |
+          awk \
+            '{print $2}')"
+    if [[ "${_user}" != "" ]]; then
+      git_services+=(
+        "github"
+      )
+    fi
+  fi
+}
+
+_gitlab_auto_detect() {
+  local \
+    _token_private
+  _token_private="${HOME}/.config/${_service}.com/${target_namespace}.txt"
+  if [[ -e "${_token_private}" ]]; then
+    git_services+=(
+      "gitlab"
+    )
+  fi
+}
 
 _git_services_auto_detect() {
   local \
     _service \
-    _services=() \
-    _token_private
+    _services=()
   _services+=(
     "github"
     "gitlab"
   )
   if [[ "${git_services[*]}" == "" ]]; then
     for _service in "${_services[@]}"; do
-      _token_private="${HOME}/.config/${_service}.com/${target_namespace}.txt"
-      echo "${_token_private}"
-      if [[ -e "${_token_private}" ]]; then
-        git_services+=(
-          "${_service}"
-        )
-      fi
+      "_${_service}_auto_detect"
     done
   fi
   git_services_amount="${#git_services[@]}"
