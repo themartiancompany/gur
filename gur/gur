@@ -38,7 +38,8 @@ _sourced \
 _global_variables() {
   run_date=""
   wallet_name=""
-  git_service=""
+  git_services=()
+  git_services_amount=""
   target_namespace=""
   target_command=""
   target_key=""
@@ -786,6 +787,41 @@ _quota_check() {
   "_${_git_service}_check" \
     "${_namespace_user}" \
     "${_namespace_target}"
+}
+
+_quota_query() {
+  local \
+    _namespace_id="${1}" \
+    _mm
+  _mm="gid://gitlab/Namespace/${_namespace_id}"
+  _test=(
+    "{"
+      'ciMinutesUsage(namespaceId: \"'${_mm}'\", first:1) {'
+        "nodes {"
+          "month"
+          "monthIso8601"
+          "minutes"
+          "projects {"
+            "nodes {"
+              "minutes"
+              "project {"
+                "id" 
+                "name"
+              "}"
+            "}"
+          "}"
+         "}"
+      "}"
+    "}"
+  )
+  IFS='' \
+    read \
+      -r \
+      -d '' \
+      _query << \
+        ENDQUERYTEXT || true
+{ "query": "query ${_test[*]}" }
+ENDQUERYTEXT
 }
 
 _gitlab_quota_check() {
@@ -1832,15 +1868,25 @@ _gur_check() {
 
 _gur() {
   local \
-    _git_service="${1}" \
+    _git_services_amount="${1}" \
     _target_namespace="${2}" \
     _cache_dir="${3}" \
     _target_command="${4}" \
     _target_key="${5}" \
     _target_value="${6}" \
+    _git_services=() \
     _repos=() \
     _command_args=() \
-    _msg=()
+    _msg=() \
+    _service
+  for _service \
+    in $(seq \
+           "${_git_services_amount}"); do
+    shift
+    _git_services+=(
+      "${1}"
+    ) 
+  done
   shift \
     6
   _command_args+=(
@@ -1887,7 +1933,18 @@ _cache_dir_auto_detect() {
     "${_cache_dir}"
 }
 
+_git_services_auto_detect() {
+  if [[ "${git_services[*]}" == "" ]]; then
+    git_services+=(
+      "github"
+      "gitlab"
+    )
+  fi
+  git_services_amount="${#git_services[@]}"
+}
+
 _set_overrides() {
+  git_services_amount="${#git_services[@]}"
   if [[ -v override_quiet ]]; then
     quiet="${override_quiet}"
   elif [[ -z "${quiet}" ]]; then
@@ -1902,10 +1959,7 @@ _set_overrides() {
     "run" \
     "date" \
     "$(_get_date_human)"
-  _set_override \
-    "git" \
-    "service" \
-    "github"
+  _git_services_auto_detect
   _set_override \
     "target" \
     "namespace" \
@@ -1917,40 +1971,6 @@ _set_overrides() {
   _cache_dir_auto_detect
 }
 
-_quota_query() {
-  local \
-    _namespace_id="${1}" \
-    _mm
-  _mm="gid://gitlab/Namespace/${_namespace_id}"
-  _test=(
-    "{"
-      'ciMinutesUsage(namespaceId: \"'${_mm}'\", first:1) {'
-        "nodes {"
-          "month"
-          "monthIso8601"
-          "minutes"
-          "projects {"
-            "nodes {"
-              "minutes"
-              "project {"
-                "id" 
-                "name"
-              "}"
-            "}"
-          "}"
-         "}"
-      "}"
-    "}"
-  )
-  IFS='' \
-    read \
-      -r \
-      -d '' \
-      _query << \
-        ENDQUERYTEXT || true
-{ "query": "query ${_test[*]}" }
-ENDQUERYTEXT
-}
 
 # Show help usage, with an exit status.
 # $1: exit status number.
@@ -2120,7 +2140,7 @@ command_args=(
 _set_overrides
 _show_config
 app_opts=(
-  "${git_service}"
+  "${git_services_amount}"
   "${target_namespace}"
   "${cache_dir}"
   "${target_command}"
