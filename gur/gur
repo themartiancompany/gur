@@ -1043,6 +1043,8 @@ _gitlab_quota_get() {
       "${_msg[*]}" \
       1
   fi
+  echo \
+    "${_minutes}"
 }
 
 _exists_check() {
