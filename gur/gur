@@ -109,7 +109,7 @@ _requirements() {
 _get_conf_dir_path() {
   local \
     _dir
-  _dir="${HOME}/.config/gur"
+  _dir="${HOME}/.config/${app_name}"
   echo \
     "${_dir}"
 }
@@ -139,7 +139,7 @@ _github_repos_get() {
   _repos_file="${_cache_dir}/${_namespace}/github/repos.db"
   _lib="$(
     _get_lib)"
-  _repos_get_bin="${_lib}/gur/repos-get"
+  _repos_get_bin="${_lib}/${app_name}/repos-get"
   _token_private_get \
     "github.com" \
     "${_namespace}"
@@ -775,6 +775,20 @@ _repo_new() {
 }
 
 _quota_check() {
+  local \
+    _namespace_user="${1}" \
+    _namespace_target="${2}" \
+    _git_service
+  _git_service="gitlab"
+  if (( 2 < "${#}" )); then
+    _git_service="${3}"
+  fi
+  "_${_git_service}_check" \
+    "${_namespace_user}" \
+    "${_namespace_target}"
+}
+
+_gitlab_quota_check() {
   local \
     _namespace_user="${1}" \
     _namespace_target="${2}" \
@@ -1667,6 +1681,96 @@ _gitlab_jobs_get() {
     "${_cache_dir}/jobs.json"
 }
 
+_get_cmd() {
+  local \
+    _target_namespace="${1}"
+    _target_key="${2}" \
+    _target_value="${3}" \
+    _args_extra=() \
+    _target_field \
+    _target_repo
+    _msg=()
+  shift \
+    3
+  _args_extra+=(
+    "$@"
+  )
+  if [[ " ${_target_key} " == "" ]]; then
+    _msg=(
+      "A field must be provided."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  if [[ "${_target_key}" == "repos" ]]; then
+    _repos_get \
+      "${_target_namespace}"
+    echo \
+      "${_repos[@]}"
+  elif [[ " ${_target_value} " == "" ]]; then
+    _msg=(
+      "A repository must be provided."
+      )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  if [[ "${_target_key}" != "repos" ]]; then
+    if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
+      _target_field="${_target_key}"
+      _target_repo="${_target_value}"
+      "_${_target_field}_get" \
+        "${_target_namespace}" \
+        "${_target_repo}" \
+        "${_args_extra[@]}"
+    else
+      _msg_error \
+        "Unknown field '${_target_key}'." \
+        1
+    fi
+  fi
+}
+
+_check_cmd() {
+  local \
+    _cache_dir="${1}" \
+    _target_namespace="${2}" \
+    _target_key="${3}" \
+    _target_value="${4}" \
+    _target_repo \
+    _msg=()
+  if [[ "${_target_value}" != "" ]]; then
+    _target_repo="${_target_value}"
+    _repos+=(
+      "${_target_repo}"
+    )
+  elif [[ "${_target_value}" == "" ]]; then
+    _msg=(
+      "No repository selected, global check"
+      "triggered."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    if [[ ! -e "${_cache_dir}/mirrors.db" ]]; then
+      _repos_get \
+        "${_target_namespace}"
+    elif [[ -e "${_cache_dir}/mirrors.db" ]]; then
+      _msg=(
+        "Using local mirrors list"
+        "because Github has a miserable"
+        "API limit."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _repos+=( $(
+        cat \
+          "${_cache_dir}/mirrors.db")
+      )
+    fi
+  fi
+}
+
 _gur() {
   local \
     _git_service="${1}" \
@@ -1686,127 +1790,13 @@ _gur() {
     "$@"
   )
   if [[ "${_target_command}" == "get" ]]; then
-    if [[ " ${_target_key} " == "" ]]; then
-      _msg=(
-        "A field must be provided."
-      )
-      _msg_error \
-        "${_msg[*]}" \
-        1
-    fi
-    if [[ "${_target_key}" == "repos" ]]; then
-      _repos_get \
-        "${_target_namespace}"
-      echo \
-        "${_repos[@]}"
-    elif [[ " ${_target_value} " == "" ]]; then
-      _msg=(
-        "A repository must be provided."
-        )
-      _msg_error \
-        "${_msg[*]}" \
-        1
-    fi
-    if [[ "${_target_key}" != "repos" ]]; then
-      if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
-        _target_field="${_target_key}"
-        _target_repo="${_target_value}"
-        "_${_target_field}_get" \
-          "${_target_namespace}" \
-          "${_target_repo}" \
-          "${_command_args[@]}"
-      else
-        _msg_error \
-          "Unknown field '${_target_key}'." \
-          1
-      fi
-    fi
+    _get_cmd \
+      "${_target_namespace}" \
+      "${_target_key}" \
+      "${_target_value}" \
+      "${_command_args[@]}"
   elif [[ "${_target_command}" == "check" ]]; then
-    if [[ "${_target_value}" != "" ]]; then
-      _target_repo="${_target_value}"
-      _repos+=(
-        "${_target_repo}"
-      )
-    elif [[ "${_target_value}" == "" ]]; then
-      _msg=(
-        "No repository selected, global check"
-        "triggered."
-      )
-      _msg_info \
-        "${_msg[*]}"
-      if [[ ! -e "${_cache_dir}/mirrors.db" ]]; then
-        _repos_get \
-          "${_target_namespace}"
-      elif [[ -e "${_cache_dir}/mirrors.db" ]]; then
-        _msg=(
-          "Using local mirrors list"
-          "because Github has a miserable"
-          "API limit."
-        )
-        _msg_info \
-          "${_msg[*]}"
-        _repos+=( $(
-          cat \
-            "${_cache_dir}/mirrors.db")
-        )
-      fi
-    fi
-    if [[ "${_target_key}" == "" ]]; then
-      _msg=(
-        "No field selected, checking all."
-      )
-      _msg_info \
-        "${_msg[*]}"
-      for _target_repo in "${_repos[@]}"; do
-        _checked="$(
-          cat \
-            "${_cache_dir}/checked.db" | \
-            grep \
-              "${_target_repo}" || \
-            true)"
-        if [[ "${_checked}" == "" ]]; then
-          _msg=(
-            "Mirror for package"
-            "'${_target_repo}'"
-            "unchecked, checking now."
-          )
-          _msg_info \
-            "${_msg[*]}"
-          for _field in "${mirror_fields[@]}"; do
-            "_${_field}_check" \
-              "${_target_namespace}" \
-              "${_target_repo}" \
-              "${_git_service}"
-          done
-          echo \
-            "${_target_repo}" >> \
-            "${_cache_dir}/checked.db"
-        elif [[ "${_checked}" != "" ]]; then
-          _msg=(
-            "Mirror for package"
-            "'${_target_repo}'"
-            "already checked, skipping."
-          )
-          _msg_info \
-            "${_msg[*]}"
-        fi
-      done
-    elif [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
-      _target_field="${_target_key}"
-      for _target_repo in "${_repos[@]}"; do
-        "_${_target_field}_check" \
-          "${_target_namespace}" \
-          "${_target_repo}" \
-          "${_git_service}"
-      done
-    else
-      _msg=(
-        "Unknown field '${_target_key}'."
-      )
-      _msg_error \
-        "${_msg[*]}" \
-        1
-    fi
+    _check_cmd
   else
     _msg=(
       "Unknown command '${_target_command}'."
@@ -1820,7 +1810,7 @@ _gur() {
 _cache_dir_auto_detect() {
   local \
     _cache_dir
-  _cache_dir="${HOME}/.cache/gur/${target_namespace}"
+  _cache_dir="${HOME}/.cache/${app_name}/${target_namespace}"
   if [[ ! -e "${_cache_dir}" ]]; then
     mkdir \
       -p \
