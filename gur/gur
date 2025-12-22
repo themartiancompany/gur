@@ -656,7 +656,7 @@ _github_repo_new() {
 
 _namespaces_get() {
   local \
-    _namespace="${1}" \
+    _user="${1}" \
     _api \
     _curl_opts=() \
     _token \
@@ -666,7 +666,7 @@ _namespaces_get() {
   _url="${_api}/namespaces"
   _token_private_get \
     "gitlab.com" \
-    "${_namespace}"
+    "${_user}"
   _token="PRIVATE-TOKEN: $(
     cat \
       "${_token_private}")"
@@ -683,17 +683,41 @@ _namespaces_get() {
       "${_curl_opts[@]}" \
       "${_url}" || \
       true)"
-  if [[ "${_namespace[*]}" == "" ]]; then
+  if [[ "${_namespaces}" == "" ]]; then
     _msg=(
       "Found no namespaces"
       "corresponding to user"
-      "'${_namespace}'."
+      "'${_user}'."
     )
     _msg_error \
       "${_msg[*]}" \
       1
   fi
-
+  _error="$(
+    echo \
+      "${_namespaces}" |
+      jq \
+        ".error" \
+        2>"/dev/null" || \
+        true)"
+  if [[ "${_error}" != "" ]]; then
+    _msg=(
+      "Error retrieving namespaces"
+      "for user '${_user}':"
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
+    _msg=( "$(
+      echo \
+        "${_namespaces}" |
+        jq \
+          ".error_description")"
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
 }
 
 _namespace_id_get() {
@@ -779,17 +803,16 @@ _quota_get() {
     _namespace_user="${1}" \
     _namespace_target="${2}" \
     _git_service
-  echo \
-    "$@"
   _git_service="gitlab"
   if (( 2 < "${#}" )); then
     _git_service="${3}"
   fi
-  "_${_git_service}_check" \
-    "${_namespace_user}" \
-    "${_namespace_target}"
+  if [[ "${_git_service}" != "github" ]]; then
+    "_${_git_service}_quota_get" \
+      "${_namespace_user}" \
+      "${_namespace_target}"
+  fi
 }
-
 
 _quota_check() {
   local \
@@ -808,11 +831,20 @@ _quota_check() {
 _quota_query() {
   local \
     _namespace_id="${1}" \
-    _mm
-  _mm="gid://gitlab/Namespace/${_namespace_id}"
+    _namespace_type \
+    _gid
+  _namespace_type="user"
+  if (( 1 < "${#}" )); then
+    _namespace_type="${2}"
+  fi
+  if [[ "${_namespace_type}" == "user" ]]; then
+    _gid="gid://gitlab/Namespace/${_namespace_id}"
+  elif [[ "${_namespace_type}" == "group" ]]; then
+    _gid="gid://gitlab/Group/${_namespace_id}"
+  fi
   _test=(
     "{"
-      'ciMinutesUsage(namespaceId: \"'${_mm}'\", first:1) {'
+      'ciMinutesUsage(namespaceId: \"'${_gid}'\", first: 1) {'
         "nodes {"
           "month"
           "monthIso8601"
@@ -840,25 +872,100 @@ _quota_query() {
 ENDQUERYTEXT
 }
 
-_gitlab_quota_get() {
+_groups_get() {
+  local \
+    _user="${1}" \
+    _api \
+    _curl_opts=() \
+    _token \
+    _token_private \
+    _url
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/groups"
+  _token_private_get \
+    "gitlab.com" \
+    "${_user}"
+  _token="PRIVATE-TOKEN: $(
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    --request
+      "GET"
+    -XGET
+    --header
+      "${_token}"
+  )
+  _groups="$(
+    curl \
+      "${_curl_opts[@]}" \
+      "${_url}" || \
+      true)"
+  if [[ "${_groups}" == "" ]]; then
+    _msg=(
+      "Found no groups"
+      "for user"
+      "'${_user}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _error="$(
+    echo \
+      "${_groups}" |
+      jq \
+        ".error" \
+        2>"/dev/null" || \
+        true)"
+  if [[ "${_error}" != "" ]]; then
+    _msg=(
+      "Error retrieving groups"
+      "for user '${_user}':"
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
+    _msg=( "$(
+      echo \
+        "${_groups}" |
+        jq \
+          ".error_description")"
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_group_namespace_check() {
   local \
     _namespace_user="${1}" \
     _namespace_target="${2}" \
-    _curl_opts=() \
-    _graphql_opts=() \
-    _api \
-    _bearer \
-    _graphql \
-    _namespace_id \
-    _url \
-    _token_private \
-    _token
-  _quota="$(
-    _gitlab_quota_get \
-      "${_namespace_user}" \
-      "${_namespace_target}")"
-  echo \
-    "${_quota}"
+    _groups \
+    _group
+  _namespace_id_get \
+    "${_namespace_target}"
+  _groups_get \
+    "${_namespace_user}"
+  _group="$(
+    echo \
+      "${_groups}" |
+      jq \
+        --raw-output \
+        '.[] | select(.path == "'${_namespace_target}'") | .path' \
+        || \
+        true)"
+  if [[ "${_group}" != "null" && \
+        "${_group}" != "" ]]; then
+    _msg=(
+      "Namespace '${_namespace_target}'"
+      "is a group."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _namespace_type="group"
+  fi
 }
 
 _gitlab_quota_get() {
@@ -870,10 +977,14 @@ _gitlab_quota_get() {
     _api \
     _bearer \
     _graphql \
+    _minutes \
     _namespace_id \
+    _namespace_type \
     _url \
     _token_private \
-    _token
+    _token \
+    _msg=()
+  _namespace_type="user"
   _graphql="https://gitlab.com/api/graphql"
   _token_private_get \
     "gitlab.com" \
@@ -892,6 +1003,9 @@ _gitlab_quota_get() {
   )
   _namespace_id_get \
     "${_namespace_target}"
+  _group_namespace_check \
+    "${_namespace_user}" \
+    "${_namespace_target}"
   _quota_query \
     "${_namespace_id}"
   _graphql_opts+=(
@@ -908,10 +1022,27 @@ _gitlab_quota_get() {
     --data
       "${_query}"
   )
-  curl \
-    "${_graphql_opts[@]}" |
-    jq \
-      ".data.ciMinutesUsage.nodes.[].minutes"
+  _minutes="$(
+    curl \
+      "${_graphql_opts[@]}" |
+      jq \
+        ".data.ciMinutesUsage.nodes.[].minutes")"
+  if [[ "${_minutes}" == "" ]]; then
+    if [[ "${_namespace_type}" == "group" ]]; then
+      _msg=(
+        "User '${_namespace_user}'"
+        "doesn't have access to usage data"
+        "of '${_namespace_target}' group."
+      )
+    else
+      _msg=(
+        "Unknown error."
+        )
+    fi
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
 }
 
 _exists_check() {
@@ -1759,7 +1890,6 @@ _gur_get() {
     _namespace_user="${_target_namespace}"
     _namespace_target="${_target_value}"
     for _service in "${_git_services[@]}"; do
-      echo "${_git_services[@]}"
       _quota_get \
         "${_target_namespace}" \
         "${_target_value}" \
@@ -1916,7 +2046,7 @@ _gur() {
   elif [[ "${_target_command}" == "check" ]]; then
     for _service in "${_git_services[@]}"; do
       _gur_check \
-        "${_git_service}" \
+        "${_service}" \
         "${_target_namespace}" \
         "${_target_key}" \
         "${_target_value}" \
