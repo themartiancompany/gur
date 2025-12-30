@@ -1055,6 +1055,7 @@ _exists_check() {
     _git_opts=() \
     _exists \
     _msg=()
+  _git_service="gitlab"
   if (( 2 < "${#}" )); then
     _git_service="${3}"
   fi
@@ -1107,13 +1108,28 @@ _exists_check() {
 _ci_check() {
   local \
     _target_namespace="${1}" \
-    _target_repo="${2}"
-  _github_ci_check \
-    "${_target_namespace}" \
-    "${_target_repo}"
-  _gitlab_ci_check \
-    "${_target_namespace}" \
-    "${_target_repo}"
+    _target_repo="${2}" \
+    _git_services=()
+  shift \
+    2
+  _git_services+=(
+    "$@"
+  )
+  if [[ "${_git_services[*]}" == "" ]]; then
+    _git_services+=(
+      "github"
+      "gitlab"
+    )
+  fi
+  for _service in "${_git_services[@]}"; do 
+    _exists_check \
+      "${_target_namespace}" \
+      "${_target_repo}" \
+      "${_service}"
+    "_${_service}_ci_check" \
+      "${_target_namespace}" \
+      "${_target_repo}"
+  done
 }
 
 _github_ci_check() {
