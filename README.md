@@ -19,12 +19,21 @@
 [comment]: <> (License along with this program.)
 [comment]: <> (If not, see <https://www.gnu.org/licenses/>.)
 
-# Github Ur (Gur)
+<div
+   align="center">
+  <img
+     src="https://raw.githubusercontent.com/themartiancompany/gur-data/58b258b5093a2233d379bc5e7d8707686b9e5b44/gurbuild.png"
+     width="500"
+     align="center"
+  />
+</div>
+
+# Git\* Ur (Gur)
 
 A command-line utility to easily manage
 [Ur](
   https://github.com/themartiancompany/ur)
-repositories censorable Github HTTP mirrors.
+repositories censorable Git* HTTP mirrors.
 
 The program depends on the
 [Crash Bash](
@@ -37,6 +46,8 @@ and the
 [PyGitHub](
   https://github.com/PyGithub/PyGithub)
 Python library.
+
+The character in the logo is *Gurbuild*.
 
 ## Installation
 
