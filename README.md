@@ -45,7 +45,27 @@ the
 and the
 [PyGitHub](
   https://github.com/PyGithub/PyGithub)
-Python library.
+Python library,
+the
+[`gl-dl`](
+  https://github.com/themartiancompany-gl-dl)
+program.
+
+The `gur` program allows one to easily build
+Ur universal recipes on build services such as
+those offered by
+[Github](
+  https://github.com)
+and
+[Gitlab](
+  https://gitlab.com),
+so allowing users to set up their own
+*binary user repositories* which they
+can access using the Fallback User
+Repository
+[`fur`](
+  https://github.com/themartiancompany/fur)
+program.
 
 The character in the logo is *Gurbuild*.
 
