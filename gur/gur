@@ -2157,7 +2157,11 @@ _target_namespace_auto_detect() {
         "hosts" |
       jq \
         --raw-output \
-        '.hosts."github.com".[] | select(.active == true).login')"
+        '.hosts."github.com".[] | select(.active == true).login' || \
+      true)"
+  if [[ "${_namespace}" == "null" ]]; then
+    _namespace=""
+  fi
   _set_override \
     "target" \
     "namespace" \
