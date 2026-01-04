@@ -1931,6 +1931,34 @@ _gur_get() {
   fi
 }
 
+_gur_build() {
+  local \
+    _git_service="${1}" \
+    _target_namespace="${2}" \
+    _target_key="${3}" \
+    _target_value="${4}" \
+    _cache_dir="${5}"
+    _msg=()
+  # TODO:
+  # check if repository ci
+  # has already been configured
+  # check if unstaged changes
+  # if not commit
+  # check if commit is tagged
+  # if not read the tag name
+  # from the PKGBUILD
+  # and attach it to the commit
+  # return error if the tag
+  # exists alrady
+  # push the tag
+  
+  # TODO:
+  # implement build status command
+  # which can just ask gitlab
+  # if the repository has built
+  # the corresponding binary release
+}
+
 _gur_check() {
   local \
     _git_service="${1}" \
@@ -2070,6 +2098,13 @@ _gur() {
         "${_target_value}" \
         "${_cache_dir}"
       done
+  elif [[ "${_target_command}" == "build" ]]; then
+    _gur_build \
+      "${_service}" \
+      "${_target_namespace}" \
+      "${_target_key}" \
+      "${_target_value}" \
+      "${_cache_dir}"
   else
     _msg=(
       "Unknown command '${_target_command}'."
