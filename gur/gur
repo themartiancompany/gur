@@ -1201,6 +1201,9 @@ _github_ci_check() {
       "${_target_namespace}" \
       "${_repo}" \
       "${_git_service}"
+    ci_checked \
+      "${_target_repo}" \
+      "github"
   fi
 }
 
