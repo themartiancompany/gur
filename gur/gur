@@ -1140,53 +1140,108 @@ _github_ci_check() {
     _secrets_missing=() \
     _bur_gpg_key \
     _repo \
-    _git_service
+    _git_service \
+    _checked
   _git_service="github"
   _repo="${_target_repo}-ur"
-  _msg=(
-    "Checking Github's"
-    "'${_target_namespace}/${_repo}'"
-    "continuous integration variables."
-  )
-  _msg_info \
-    "${_msg[*]}"
-  _secrets=( $(
-    _github_secrets_get \
-      "${_target_namespace}" \
-      "${_repo}")
-  )
-  if [[ " ${_secrets[*]} " != *" GL_DL_PRIVATE_TOKEN "* ]]; then
+  _ci_check_local \
+    "${_target_repo}" \
+    "github"
+  if [[ "${_checked}" == "true" ]]; then
     _msg=(
-      "Missing secret github.com"
-      "access token variable"
-      "'GL_DL_PRIVATE_TOKEN',"
-      "setting up."
+      "Github.com"
+      "'${_target_namespace}/${_repo}'"
+      "continuous integration environment"
+      "already configured."
     )
     _msg_info \
       "${_msg[*]}"
-    _gl_dl_token_set \
-      "${_target_namespace}" \
-      "${_repo}" \
-      "${_git_service}.com" \
-      "${_git_service}"
-  fi
-  if [[ " ${_secrets[*]} " != *" BUR_GPG_KEY "* ]]; then
+  elif [[ "${_checked}" == "false" ]]; then
     _msg=(
-      "Missing secret gitlab.com"
-      "access token variable"
-      "'BUR_GPG_KEY', setting up."
+      "Checking Github.com"
+      "'${_target_namespace}/${_repo}'"
+      "continuous integration variables."
     )
     _msg_info \
       "${_msg[*]}"
+    _secrets=( $(
+      _github_secrets_get \
+        "${_target_namespace}" \
+        "${_repo}")
+    )
+    if [[ " ${_secrets[*]} " != *" GL_DL_PRIVATE_TOKEN "* ]]; then
+      _msg=(
+        "Missing secret github.com"
+        "access token variable"
+        "'GL_DL_PRIVATE_TOKEN',"
+        "setting up."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _gl_dl_token_set \
+        "${_target_namespace}" \
+        "${_repo}" \
+        "${_git_service}.com" \
+        "${_git_service}"
+    fi
+    if [[ " ${_secrets[*]} " != *" BUR_GPG_KEY "* ]]; then
+      _msg=(
+        "Missing secret gitlab.com"
+        "access token variable"
+        "'BUR_GPG_KEY', setting up."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _bur_gpg_key_set \
+        "${_target_namespace}" \
+        "${_repo}" \
+        "${_git_service}"
+    fi
     _bur_gpg_key_set \
       "${_target_namespace}" \
       "${_repo}" \
       "${_git_service}"
   fi
-  _bur_gpg_key_set \
-    "${_target_namespace}" \
-    "${_repo}" \
-    "${_git_service}"
+}
+
+_ci_check_local() {
+  local \
+    _target_repo="${1}" \
+    _service="${2}" \
+    _pkg_dir \
+    _ci_file
+  _pkg_dir="${_cache_dir}/packages/${_target_repo}"
+  _ci_file="${_pkg_dir}/ci"
+  _checked="$(
+    cat \
+      "${_ci_file}" \
+      2>"/dev/null" |
+      grep \
+        -c \
+        "${_service}" || \
+      true)"
+  if [[ "${_checked}" == "1" ]]; then
+    _checked="true"
+  elif [[ "${_checked}" == "0" || \
+          "${_checked}" == "" ]]; then
+    _checked="false"
+  fi
+}
+
+_ci_checked() {
+  local \
+    _target_repo="${1}" \
+    _service="${2}" \
+    _pkg_dir \
+    _ci_file
+  _pkg_dir="${_cache_dir}/packages/${_target_repo}"
+  _ci_file="${_pkg_dir}/ci"
+  mkdir \
+    -p \
+    "${_pkg_dir}"
+  echo \
+    "${_service}" >> \
+    "${_ci_file}"
 }
 
 _gitlab_ci_check() {
@@ -1195,24 +1250,42 @@ _gitlab_ci_check() {
     _target_repo="${2}" \
     _env \
     _msg=() \
-    _repo
-  _repo="${_target_repo}-ur"
-  _msg=(
-    "Checking Gitlab.com"
-    "'${_target_namespace}/${_repo}'"
-    "continuous integration environment."
-  )
-  _msg_info \
-    "${_msg[*]}"
-  _gl_dl_token_set \
-    "${_target_namespace}" \
-    "${_repo}" \
-    "gitlab.com" \
+    _repo \
+    _checked
+  _ci_check_local \
+    "${_target_repo}" \
     "gitlab"
-  _bur_gpg_key_set \
-    "${_target_namespace}" \
-    "${_repo}" \
-    "gitlab"
+  if [[ "${_checked}" == "true" ]]; then
+    _msg=(
+      "Gitlab.com"
+      "'${_target_namespace}/${_repo}'"
+      "continuous integration environment"
+      "already configured."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ "${_checked}" == "false" ]]; then
+    _repo="${_target_repo}-ur"
+    _msg=(
+      "Checking Gitlab.com"
+      "'${_target_namespace}/${_repo}'"
+      "continuous integration environment."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _gl_dl_token_set \
+      "${_target_namespace}" \
+      "${_repo}" \
+      "gitlab.com" \
+      "gitlab"
+    _bur_gpg_key_set \
+      "${_target_namespace}" \
+      "${_repo}" \
+      "gitlab"
+    ci_checked \
+      "${_target_repo}" \
+      "gitlab"
+  fi
 }
 
 _gitlab_env_get() {
@@ -1937,21 +2010,41 @@ _gur_build() {
     _target_namespace="${2}" \
     _target_key="${3}" \
     _target_value="${4}" \
-    _cache_dir="${5}"
+    _cache_dir="${5}" \
+    _pkgbuild \
+    _tag \
     _msg=()
+  _pkgbuild="${PWD}/PKGBUILD"
   # TODO:
   # check if repository ci
   # has already been configured
   # check if unstaged changes
   # if not commit
   # check if commit is tagged
-  # if not read the tag name
-  # from the PKGBUILD
-  # and attach it to the commit
-  # return error if the tag
-  # exists alrady
-  # push the tag
-  
+  _tag="$(
+    recipe-get \
+      "${_pkgbuild}" \
+      "pkgver")-$(
+    recipe-get \
+      "${_pkgbuild}" \
+      "pkgrel")"
+  git \
+    commit \
+    -m \
+      "Gur generated commit."
+  git \
+    tag \
+      -m \
+        "Gur generated release."
+      -a \
+      "${_tag}"
+  git \
+    push \
+      "${_target_namespace}"
+  git \
+    push \
+      "${_target_namespace}" \
+      --tags
   # TODO:
   # implement build status command
   # which can just ask gitlab
