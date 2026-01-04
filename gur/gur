@@ -1201,7 +1201,7 @@ _github_ci_check() {
       "${_target_namespace}" \
       "${_repo}" \
       "${_git_service}"
-    ci_checked \
+    _ci_checked \
       "${_target_repo}" \
       "github"
   fi
@@ -1258,6 +1258,7 @@ _gitlab_ci_check() {
   _ci_check_local \
     "${_target_repo}" \
     "gitlab"
+  _repo="${_target_repo}-ur"
   if [[ "${_checked}" == "true" ]]; then
     _msg=(
       "Gitlab.com"
@@ -1268,7 +1269,6 @@ _gitlab_ci_check() {
     _msg_info \
       "${_msg[*]}"
   elif [[ "${_checked}" == "false" ]]; then
-    _repo="${_target_repo}-ur"
     _msg=(
       "Checking Gitlab.com"
       "'${_target_namespace}/${_repo}'"
@@ -1285,7 +1285,7 @@ _gitlab_ci_check() {
       "${_target_namespace}" \
       "${_repo}" \
       "gitlab"
-    ci_checked \
+    _ci_checked \
       "${_target_repo}" \
       "gitlab"
   fi
@@ -2016,7 +2016,11 @@ _gur_build() {
     _cache_dir="${5}" \
     _pkgbuild \
     _tag \
+    _committed \
+    _tag_exists \
+    _remote \
     _msg=()
+  _remote="${_target_namespace}-gitlab"
   _pkgbuild="${PWD}/PKGBUILD"
   # TODO:
   # check if repository ci
@@ -2031,22 +2035,58 @@ _gur_build() {
     recipe-get \
       "${_pkgbuild}" \
       "pkgrel")"
-  git \
-    commit \
-    -m \
-      "Gur generated commit."
-  git \
-    tag \
-      -m \
-        "Gur generated release."
+  _committed="$(
+    git \
+      commit \
       -a \
-      "${_tag}"
+      -S \
+      -m \
+        "Gur generated commit." || \
+    echo \
+      "false")"
+  if [[ "${_committed}" == "false" ]]; then
+    _msg=(
+      "No changes have been commit."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  else
+    echo \
+      "${_committed}"
+  fi
+  _tag_exists="$(
+    git \
+      tag |
+      grep \
+        "\b${_tag}\b" || \
+    true)"
+  if [[ "${_tag_exists}" != "" ]]; then
+    _msg=(
+      "Tag '${_tag}' exists already locally,"
+      "increase the 'pkgrel' variable"
+      "in the PKGBUILD."
+    )
+    _msg_warning \
+      "${_msg[*]}"
+  elif [[ "${_tag_exists}" == "" ]]; then
+    _msg=(
+      "Creating tag '${_tag}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    git \
+      tag \
+        -a \
+        "${_tag}" \
+        -m \
+          "Gur generated release."
+  fi
   git \
     push \
-      "${_target_namespace}"
+      "${_remote}"
   git \
     push \
-      "${_target_namespace}" \
+      "${_remote}" \
       --tags
   # TODO:
   # implement build status command
