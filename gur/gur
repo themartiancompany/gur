@@ -2202,11 +2202,10 @@ _gur() {
   local \
     _git_services_amount="${1}" \
     _target_namespaces_amount="${2}" \
-    _target_namespace="${3}" \
-    _cache_dir="${4}" \
-    _target_command="${5}" \
-    _target_key="${6}" \
-    _target_value="${7}" \
+    _cache_dir="${3}" \
+    _target_command="${4}" \
+    _target_key="${5}" \
+    _target_value="${6}" \
     _git_services=() \
     _target_namespaces=() \
     _repos=() \
@@ -2214,7 +2213,7 @@ _gur() {
     _msg=() \
     _service
   shift \
-    7
+    6
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -2231,7 +2230,7 @@ _gur() {
     ) 
     shift
   done
-  if [[ "1" == "${_target_namespaces_amount}" ]]; then
+  if (( 0 < "${_target_namespaces_amount}" )); then
     _target_namespace="${_target_namespaces[0]}"
   fi
   _command_args+=(
@@ -2493,11 +2492,11 @@ _gitlab_token_owner_get() {
   if [[ "${_user_id}" == "null" ]]; then
     _user_id=""
   fi
-  _gitlab_user_id_get \
+  _gitlab_username_get \
     "${_user_id}"
 }
 
-_gitlab_user_id_get() {
+_gitlab_username_get() {
   local \
     _namespace="${1}" \
     _user_id="${1}" \
@@ -2551,34 +2550,68 @@ _gitlab_user_id_get() {
 _gitlab_namespaces_auto_detect() {
   local \
     _namespace \
+    _namespaces=() \
     _pat_dir \
     _target_namespace \
     _token
   _pat_dir="${HOME}/.config/gitlab.com"
-  for _token in "${_pat_dir}/"*; do
+  for _token \
+    in $(find \
+           "${_pat_dir}" \
+           -maxdepth \
+             1 \
+           \( -type \
+             "f" \
+           -o \
+           -type \
+             "l" \
+           \) ); do
     _namespace="$(
       basename \
         "${_token%.txt}")"
-    _target_namespace="$(
+    echo "${_namespace}"
+    _username="$(
       _gitlab_token_owner_get \
         "${_namespace}")"
-    if [[ "${_target_namespace}" != "" ]]; then
-      if [[ " ${target_namespaces[*]} " != *" ${_target_namespace} "* ]]; then
-        target_namespaces+=(
-          "${_target_namespace}"
-        )
+    if [[ "${_username}" != "" ]]; then
+      _msg=(
+        "Found username '${_username}'"
+        "for token '${_namespace}'."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _namespaces_get \
+        "${_namespace}" || \
+        true
+      _namespaces=( $(
+        echo \
+          "${_namespaces}" |
+          jq \
+            --raw-output \
+            '.[].path' || \
+          true)
+      )
+      if [[ " ${_namespaces[*]} " == *" ${_namespace} "*  ]]; then
+        if [[ " ${target_namespaces[*]} " != *" ${_namespace} "* ]]; then
+          target_namespaces+=(
+            "${_namespace}"
+          )
+        fi
       fi
     fi
   done
 }
 
 _target_namespaces_auto_detect() {
-  _github_namespaces_auto_detect
-  _gitlab_namespaces_auto_detect
+  if [[ "0" == "${#target_namespaces[@]}" ]]; then
+    _github_namespaces_auto_detect
+    _gitlab_namespaces_auto_detect
+  fi
 }
 
 _set_overrides() {
   git_services_amount="${#git_services[@]}"
+  target_namespaces_amount="${#target_namespaces[@]}"
   if [[ -v override_quiet ]]; then
     quiet="${override_quiet}"
   elif [[ -z "${quiet}" ]]; then
