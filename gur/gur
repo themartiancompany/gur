@@ -2008,6 +2008,94 @@ _gur_get() {
   fi
 }
 
+_gur_namespaces_get() {
+  local \
+    _conf_dir \
+    _namespace \
+    _namespaces=() \
+    _namespaces_db \
+    _namespaces_disabled_db \
+    _now \
+    _update_delta \
+    _update_last \
+    _update_last_file \
+    _update_threshold
+  # The update threshold is set a month
+  # by default
+  _update_threshold="$((
+    60 * 60 * 24 * 30))"
+  _conf_dir="$(
+    _get_conf_dir_path)"
+  _update_last_file="${_conf_dir}/last-update.txt"
+  _namespaces_db="${_conf_dir}/accounts.db"
+  _namespaces_disabled_db="${HOME}/.config/${app_name}/accounts_disabled.db"
+  if [[ ! -e "${_update_last_file}" ]]; then
+    mkdir \
+      -p \
+      "${_conf_dir}"
+    date \
+      "+%s" > \
+      "${_update_last_file}"
+  elif [[ ! -e "${_update_last_file}" ]]; then
+    _update_last="$(
+      cat \
+        "${_update_last_file}")"
+    _now="$(
+      date \
+        "+%s")"
+    _update_delta="$((
+      "${_now}" -
+      "${_update_last}"))"
+    if (( "${_update_threshold}" < "${_update_delta}" )); then
+      for _service in "${_git_services[@]}"; do
+        "_${_service}_namespaces_auto_detect"
+      done
+      date \
+        "+%s" > \
+        "${_update_last_file}"
+    fi
+  fi
+  if [[ ! -e "${_namespaces_db}" ]]; then
+    mkdir \
+      -p \
+      "${_conf_dir}"
+    printf \
+      "%s\n" \
+      "${target_namespaces[@]}" >> \
+      "${_namespaces_db}"
+  elif [[ -e "${_namespaces_db}" ]]; then
+    _namespaces=( $(
+      cat \
+        "${_namespaces_db}")
+    )
+    for _namespace in "${target_namespaces[@]}"; do
+      if [[ " ${_namespaces[*]} " != *" ${_namespace} "* ]]; then
+        printf \
+          "%s\n" \
+          "${_namespace}" >> \
+          "${_namespaces_db}"
+      fi
+    done
+  fi
+  cat \
+    "${_namespaces_db}"
+}
+
+_gur_sync() {
+  local \
+    _git_service="${1}" \
+    _target_namespace="${2}" \
+    _target_key="${3}" \
+    _target_value="${4}" \
+    _cache_dir="${5}" \
+    _namespace \
+    _msg=()
+  _gur_namespaces_get
+  # for _namespace in "${target_namespaces[@]}"; do
+  #   echo "${_namespace}"
+  # done
+}
+
 _gur_build() {
   local \
     _git_service="${1}" \
@@ -2258,15 +2346,14 @@ _gur() {
       "${_target_key}" \
       "${_target_value}" \
       "${_cache_dir}"
-  elif [[ "${_target_command}" == "accounts" ]]; then
+  elif [[ "${_target_command}" == "sync" ]]; then
     # TODO:
-    # _gur_accounts
-    _msg=(
-      "Not implemented."
-    )
-    _msg_error \
-      "${_msg[*]}" \
-      1
+    _gur_sync \
+      "${_service}" \
+      "${_target_namespace}" \
+      "${_target_key}" \
+      "${_target_value}" \
+      "${_cache_dir}"
   else
     _msg=(
       "Unknown command '${_target_command}'."
@@ -2611,8 +2698,9 @@ _gitlab_namespaces_auto_detect() {
 
 _target_namespaces_auto_detect() {
   if [[ "0" == "${#target_namespaces[@]}" ]]; then
-    _github_namespaces_auto_detect
-    _gitlab_namespaces_auto_detect
+    target_namespaces+=( $(
+      _gur_namespaces_get)
+    )
   fi
 }
 
