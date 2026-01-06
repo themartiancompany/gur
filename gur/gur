@@ -40,7 +40,7 @@ _global_variables() {
   wallet_name=""
   git_services=()
   git_services_amount=""
-  target_namespace=""
+  target_namespaces=()
   target_command=""
   target_key=""
   target_value=""
@@ -241,7 +241,6 @@ _gitlab_repos_get() {
     curl \
       "${_curl_opts[@]}" \
       "${_url}")"
-
   _repos_get_opts+=(
     --key
       "${_token_private}"
@@ -697,6 +696,7 @@ _namespaces_get() {
     echo \
       "${_namespaces}" |
       jq \
+        --raw-output \
         ".error" \
         2>"/dev/null" || \
         true)"
@@ -712,6 +712,7 @@ _namespaces_get() {
       echo \
         "${_namespaces}" |
         jq \
+          --raw-output \
           ".error_description")"
     )
     _msg_error \
@@ -2095,6 +2096,10 @@ _gur_build() {
   # the corresponding binary release
 }
 
+_gur_accounts() {
+  echo
+}
+
 _gur_check() {
   local \
     _git_service="${1}" \
@@ -2196,18 +2201,20 @@ _gur_check() {
 _gur() {
   local \
     _git_services_amount="${1}" \
-    _target_namespace="${2}" \
-    _cache_dir="${3}" \
-    _target_command="${4}" \
-    _target_key="${5}" \
-    _target_value="${6}" \
+    _target_namespaces_amount="${2}" \
+    _target_namespace="${3}" \
+    _cache_dir="${4}" \
+    _target_command="${5}" \
+    _target_key="${6}" \
+    _target_value="${7}" \
     _git_services=() \
+    _target_namespaces=() \
     _repos=() \
     _command_args=() \
     _msg=() \
     _service
   shift \
-    6
+    7
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -2216,6 +2223,17 @@ _gur() {
     ) 
     shift
   done
+  for _namespace \
+    in $(seq \
+           "${_target_namespaces_amount}"); do
+    _target_namespaces+=(
+      "${1}"
+    ) 
+    shift
+  done
+  if [[ "1" == "${_target_namespaces_amount}" ]]; then
+    _target_namespace="${_target_namespaces[0]}"
+  fi
   _command_args+=(
     "$@"
   )
@@ -2253,16 +2271,20 @@ _gur() {
 
 _cache_dir_auto_detect() {
   local \
-    _cache_dir
-  _cache_dir="${HOME}/.cache/${app_name}/${target_namespace}"
-  if [[ ! -e "${_cache_dir}" ]]; then
-    mkdir \
-      -p \
-      "${_cache_dir}"
-    chmod \
-      700 \
-      "${_cache_dir}"
-  fi
+    _cache_dir \
+    _cache_dir_default
+  _cache_dir="${HOME}/.cache/${app_name}/${target_namespaces[0]}"
+  for _namespace in "${target_namespaces[@]}"; do
+    _cache_dir_default="${HOME}/.cache/${app_name}/${_namespace}"
+    if [[ ! -e "${_cache_dir}" ]]; then
+      mkdir \
+        -p \
+        "${_cache_dir_default}"
+      chmod \
+        700 \
+        "${_cache_dir_default}"
+    fi
+  done
   _set_override \
     "cache" \
     "dir" \
@@ -2292,13 +2314,17 @@ _github_auto_detect() {
 
 _gitlab_auto_detect() {
   local \
+    _namespace \
     _token_private
-  _token_private="${HOME}/.config/${_service}.com/${target_namespace}.txt"
-  if [[ -e "${_token_private}" ]]; then
-    git_services+=(
-      "gitlab"
-    )
-  fi
+  for _namespace in "${target_namespaces[@]}"; do
+    _token_private="${HOME}/.config/${_service}.com/${_namespace}.txt"
+    if [[ -e "${_token_private}" ]]; then
+      git_services+=(
+        "gitlab"
+      )
+      break
+    fi
+  done
 }
 
 _git_services_auto_detect() {
@@ -2317,9 +2343,29 @@ _git_services_auto_detect() {
   git_services_amount="${#git_services[@]}"
 }
 
-_target_namespace_auto_detect() {
+_github_accounts_get() {
   local \
-    _namespaces=()
+    _namespaces
+  _namespaces="$(
+    gh \
+      auth \
+        status \
+        --json \
+          "hosts" |
+      jq \
+      --raw-output \
+        '.hosts."github.com".[].login' ||
+    true)"
+  if [[ "${_namespaces}" == "null" ]]; then
+    _namespaces=""
+  fi
+  echo \
+    "${_namespaces}"
+}
+
+_github_account_active_get() {
+  local \
+    _namespace
   _namespace="$(
     gh \
       auth \
@@ -2329,14 +2375,206 @@ _target_namespace_auto_detect() {
       jq \
         --raw-output \
         '.hosts."github.com".[] | select(.active == true).login' || \
-      true)"
+    true)"
   if [[ "${_namespace}" == "null" ]]; then
     _namespace=""
   fi
-  _set_override \
-    "target" \
-    "namespace" \
+  echo \
     "${_namespace}"
+}
+
+_github_namespaces_auto_detect() {
+  local \
+    _namespace_active \
+    _namespaces=()
+  _namespace_active="$(
+    _github_account_active_get)"
+  if [[ "${_namespace_active}" != "" &&
+        " ${target_namespaces[*]} " != *" ${_namespace_active} "* ]]; then
+    target_namespaces+=(
+      "${_namespace_active}"
+    )
+  fi
+  _namespaces+=(
+    $(_github_accounts_get)
+  )
+  for _namespace in "${_namespaces[@]}"; do
+    if [[ "${_namespace}" != "${_namespace_active}" ]]; then
+      echo "${_namespace}"
+      if [[ " ${target_namespaces[*]} " != *" ${_namespace} "* ]]; then
+        target_namespaces+=(
+          "${_namespace}"
+        )
+      fi
+    fi
+  done
+}
+
+_gitlab_token_expired_check() {
+  local \
+    _namespace="${1}" \
+    _error="${2}" \
+    _error_msg=()
+  _error_msg=(
+    "Token is expired."
+    "You can either do"
+    "re-authorization"
+    "or token refresh."
+  )
+  if [[ "${_error}" == "${_error_msg[*]}" ]]; then
+    _msg=(
+      "Token for reported '${_namespace}'"
+      "namespace has expired, re-authorize it"
+      "or refresh it."
+    )
+    _msg_warning \
+      "${_msg[*]}" 
+  else
+    _msg_error \
+      "${_error}" \
+      1
+  fi
+}
+
+_gitlab_token_owner_get() {
+  local \
+    _namespace="${1}" \
+    _api \
+    _curl_opts=() \
+    _json \
+    _lib \
+    _msg=() \
+    _token \
+    _token_info \
+    _token_private \
+    _url
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/personal_access_tokens/self"
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
+  _token="PRIVATE-TOKEN: $(
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    --request
+      "GET"
+    -XGET
+    --header
+      "${_token}"
+  )
+  _token_info="$(
+    curl \
+      "${_curl_opts[@]}" \
+      "${_url}")"
+  _user_id="$(
+    echo \
+      "${_token_info}" |
+    jq \
+      --raw-output \
+      '.user_id')"
+  _error="$(
+    echo \
+      "${_token_info}" |
+    jq \
+      --raw-output \
+      '.error_description' ||
+      true)"
+  if [[ "${_error}" != "null" &&
+        "${_error}" != "" ]]; then
+    _gitlab_token_expired_check \
+      "${_namespace}" \
+      "${_error}"
+  fi
+  if [[ "${_user_id}" == "null" ]]; then
+    _user_id=""
+  fi
+  _gitlab_user_id_get \
+    "${_user_id}"
+}
+
+_gitlab_user_id_get() {
+  local \
+    _namespace="${1}" \
+    _user_id="${1}" \
+    _account_info \
+    _api \
+    _curl_opts=() \
+    _json \
+    _msg=() \
+    _token \
+    _token_private \
+    _url \
+    _username
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
+  _api="https://gitlab.com/api/v4"
+  _url="${_api}/users/${_user_id}"
+  _token_private_get \
+    "gitlab.com" \
+    "${_namespace}"
+  _token="PRIVATE-TOKEN: $(
+    cat \
+      "${_token_private}")"
+  _curl_opts+=(
+    --silent
+    --request
+      "GET"
+    -XGET
+    --header
+      "${_token}"
+  )
+  _account_info="$(
+    curl \
+      "${_curl_opts[@]}" \
+      "${_url}")"
+  _username="$(
+    echo \
+      "${_account_info}" |
+      jq \
+        --raw-output \
+        ".username" \
+      2>"/dev/null" || \
+    true)"
+  if [[ "${_username}" == "null" ]]; then
+    _username=""
+  fi
+  echo \
+    "${_username}"
+}
+
+_gitlab_namespaces_auto_detect() {
+  local \
+    _namespace \
+    _pat_dir \
+    _target_namespace \
+    _token
+  _pat_dir="${HOME}/.config/gitlab.com"
+  for _token in "${_pat_dir}/"*; do
+    _namespace="$(
+      basename \
+        "${_token%.txt}")"
+    _target_namespace="$(
+      _gitlab_token_owner_get \
+        "${_namespace}")"
+    if [[ "${_target_namespace}" != "" ]]; then
+      if [[ " ${target_namespaces[*]} " != *" ${_target_namespace} "* ]]; then
+        target_namespaces+=(
+          "${_target_namespace}"
+        )
+      fi
+    fi
+  done
+}
+
+_target_namespaces_auto_detect() {
+  _github_namespaces_auto_detect
+  _gitlab_namespaces_auto_detect
 }
 
 _set_overrides() {
@@ -2355,13 +2593,14 @@ _set_overrides() {
     "run" \
     "date" \
     "$(_get_date_human)"
-  _target_namespace_auto_detect
+  _target_namespaces_auto_detect
   _git_services_auto_detect
   _set_override \
     "wallet" \
     "name" \
-    "${target_namespace}"
+    "${target_namespaces[0]}"
   _cache_dir_auto_detect
+  target_namespaces_amount="${#target_namespaces[@]}"
 }
 
 
@@ -2387,6 +2626,8 @@ Usage:
         <args>
 
   commands:
+    build                   Creates a binary package release for
+      <pkg>                 an Ur application.
     get                     Reads the value for the
       <key>                 selected key.
         (<args>)
@@ -2456,7 +2697,7 @@ _show_config() {
   _msg_info "${app_name} configuration"
   _msg_info "                       Run date:   ${run_date}"
   _msg_info "                   Git services:   ${git_services[*]}"
-  _msg_info "               Target namespace:   ${target_namespace}"
+  _msg_info "              Target namespaces:   ${target_namespaces[*]}"
   _msg_info "                Cache directory:   ${cache_dir}"
   _msg_info "                 Target command:   ${target_command}"
   _msg_info "                     Target key:   ${target_key}"
@@ -2480,7 +2721,9 @@ while \
         "${OPTARG}"
       ) ;;
     N)
-      override_target_namespace="${OPTARG}" ;;
+      target_namespaces+=(
+        "${OPTARG}"
+      ) ;;
     W)
       override_cache_dir="${OPTARG}" ;;
     c)
@@ -2536,12 +2779,13 @@ _set_overrides
 _show_config
 app_opts=(
   "${git_services_amount}"
-  "${target_namespace}"
+  "${target_namespaces_amount}"
   "${cache_dir}"
   "${target_command}"
   "${target_key}"
   "${target_value}"
   "${git_services[@]}"
+  "${target_namespaces[@]}"
   "${command_args[@]}"
 )
 _gur \
