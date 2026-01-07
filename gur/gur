@@ -1066,6 +1066,9 @@ _github_repo_exists() {
 }
 
 _gitlab_repo_exists() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}"
   _exists="$(
     _project_id_get \
       "${_namespace}" \
@@ -1090,7 +1093,6 @@ _repo_check() {
       -d)"
   cd \
     "${_tmp_dir}"
-  "_${_service}_repo_exists"
   if [[ "${_git_service}" == "github" ]]; then
     _github_repo_exists \
       "${_namespace}" \
@@ -1122,6 +1124,8 @@ _repo_check() {
     _msg_info \
       "${_msg[*]}"
   fi
+  cd \
+    "${_oldpwd}"
 }
 
 _exists_check() {
@@ -2159,7 +2163,12 @@ _gur_sync() {
       fi
       _repo_check \
         "${_namespace}" \
-        "${_repo}"
+        "${_repo}" \
+        "${_service}"
+      _msg=(
+        "Pushing to '${_remote}'."
+      )
+      echo "${PWD}"
       git \
         push \
           "${_remote}"
