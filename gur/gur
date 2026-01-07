@@ -1048,7 +1048,31 @@ _gitlab_quota_get() {
     "${_minutes}"
 }
 
-_exists_check() {
+_github_repo_exists() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}"
+  gh \
+    auth \
+      switch \
+      -u \
+        "${_namespace}"
+  _exists="$(
+    gh \
+      repo \
+        view \
+          "${_namespace}/${_repo}" 2>"/dev/null" || \
+    true)" 
+}
+
+_gitlab_repo_exists() {
+  _exists="$(
+    _project_id_get \
+      "${_namespace}" \
+      "${_repo}")"
+}
+
+_repo_check() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
@@ -1066,44 +1090,56 @@ _exists_check() {
       -d)"
   cd \
     "${_tmp_dir}"
+  "_${_service}_repo_exists"
   if [[ "${_git_service}" == "github" ]]; then
-    gh \
-      auth \
-        switch \
-        -u \
-          "${_namespace}"
-    _exists="$(
-      gh \
-        repo \
-          view \
-            "${_namespace}/${_repo}-ur" 2>"/dev/null" || \
-      true)"
-  elif [[ "${_git_service}" == "gitlab" ]]; then
-    _exists="$(
-      _project_id_get \
-        "${_namespace}" \
-        "${_repo}")"
+    _github_repo_exists \
+      "${_namespace}" \
+      "${_repo}"
+  fi
+  if [[ "${_git_service}" == "gitlab" ]]; then
+    _gitlab_repo_exists \
+      "${_namespace}" \
+      "${_repo}"
   fi
   if [[ "${_exists}" == "" ]]; then
     _msg=(
       "Creating repository"
-      "${_repo}-ur."
+      "'${_namespace}/${_repo}' on"
+      "'${_git_service}'."
     )
     _msg_info \
       "${_msg[*]}"
     _repo_new \
       "${_namespace}" \
-      "${_repo}-ur" \
+      "${_repo}" \
       "${_git_service}"
   elif [[ "${_exists}" != "" ]]; then
     _msg=(
-      "Repository '${_repo}-ur'"
+      "Repository '${_repo}'"
       "found on '${_namespace}' namespace"
       "on '${_git_service}'."
     )
     _msg_info \
       "${_msg[*]}"
   fi
+}
+
+_exists_check() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _tmp_dir \
+    _git_opts=() \
+    _exists \
+    _msg=()
+  _git_service="gitlab"
+  if (( 2 < "${#}" )); then
+    _git_service="${3}"
+  fi
+  _repo_exists \
+    "${_namespace}" \
+    "${_repo}-ur" \
+    "${_git_service}"
 }
 
 _ci_check() {
@@ -2089,11 +2125,46 @@ _gur_sync() {
     _target_value="${4}" \
     _cache_dir="${5}" \
     _namespace \
+    _namespaces=() \
+    _remote \
+    _service \
     _msg=()
-  _gur_namespaces_get
-  # for _namespace in "${target_namespaces[@]}"; do
-  #   echo "${_namespace}"
-  # done
+  _namespaces=( $(
+    _gur_namespaces_get)
+  )
+  _repo="${_target_key}"
+  if [[ "${_repo}" == "" ]]; then
+    _repo="$(
+      basename \
+        "${PWD}")"
+  fi
+  for _namespace in "${target_namespaces[@]}"; do
+    for _service in "${_git_services[@]}"; do
+      _remote="${_namespace}-${_service}"
+      _remote_exists="$(
+        git \
+          remote |
+          grep \
+           "${_remote}" || \
+        true)"
+      if [[ "${_remote_exists}" == "" ]]; then
+        # Currently expects a working SSH configuration
+        # for hostname '<namespace>-<service>'.
+        _url="${_remote}:${_namespace}/${_target_key}"
+        git \
+          remote \
+            add \
+            "${_remote}" \
+            "${_url}"
+      fi
+      _repo_check \
+        "${_namespace}" \
+        "${_repo}"
+      git \
+        push \
+          "${_remote}"
+    done
+  done
 }
 
 _gur_build() {
@@ -2762,6 +2833,10 @@ Usage:
     check                   Checks whether the selected
       <key>                 key (or all if none) has been
         (<args>)            correctly set for package mirror.
+    sync                    To be used in a program source,
+      <pkg>                 not in an universal recipe directory
+                            in order to push changes to all
+                            connected namespaces.
 
   keys:
     repos                   List all Ur repos in the
