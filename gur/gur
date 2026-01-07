@@ -643,7 +643,9 @@ _github_repo_new() {
     _namespace="${1}" \
     _repo="${2}" \
     _gh_opts=() \
-    _user_missing_error=()
+    _user_missing_error=() \
+    _repo_new_fail
+  _repo_new_failed=""
   _user_missing_error+=(
     "HTTP 404: Not Found"
     "(https://api.github.com/users/${_namespace})"
@@ -656,7 +658,8 @@ _github_repo_new() {
     gh \
       repo \
         create \
-        "${_gh_opts[@]}" || \
+        "${_gh_opts[@]}" \
+        2>&1 || \
     true)"
   if [[ "${_create}" == "${_user_missing_error[*]}" ]]; then
     _msg=(
@@ -667,9 +670,18 @@ _github_repo_new() {
     _msg_error \
       "${_msg[*]}" \
       0
+    _repo_new_failed="true"
   elif [[ "${_create}" != "${_user_missing_error[*]}" ]]; then
     echo \
       "${_create}"
+  elif [[ "${_create}" == "" ]]; then
+    _msg=(
+      "Repository '${_repo}' successfully"
+      "created on namespace '${_namespace}'"
+      "on Github.com."
+    )
+    _msg_info \
+      "${_msg[*]}"
   fi
 }
 
@@ -2249,12 +2261,14 @@ _gur_sync() {
           "${_namespace}" \
           "${_repo}" \
           "${_service}"
-        _msg=(
-          "Pushing to '${_remote}'."
-        )
-        git \
-          push \
-            "${_remote}"
+        if [[ "${_repo_new_failed}" != "true" ]]; then
+          _msg=(
+            "Pushing to '${_remote}'."
+          )
+          git \
+            push \
+              "${_remote}"
+        fi
       fi || \
       true
     done
