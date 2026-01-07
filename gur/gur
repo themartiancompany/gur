@@ -2138,10 +2138,13 @@ _gur_namespaces_get() {
     mkdir \
       -p \
       "${_conf_dir}"
+    for _service in "${git_services[@]}"; do
+      "_${_service}_namespaces_auto_detect"
+    done
     date \
       "+%s" > \
       "${_update_last_file}"
-  elif [[ ! -e "${_update_last_file}" ]]; then
+  elif [[ -e "${_update_last_file}" ]]; then
     _update_last="$(
       cat \
         "${_update_last_file}")"
@@ -2152,7 +2155,7 @@ _gur_namespaces_get() {
       "${_now}" -
       "${_update_last}"))"
     if (( "${_update_threshold}" < "${_update_delta}" )); then
-      for _service in "${_git_services[@]}"; do
+      for _service in "${git_services[@]}"; do
         "_${_service}_namespaces_auto_detect"
       done
       date \
@@ -2160,6 +2163,7 @@ _gur_namespaces_get() {
         "${_update_last_file}"
     fi
   fi
+    echo "merda ${git_services[*]} ${target_namespaces[*]}" 1>&2
   if [[ ! -e "${_namespaces_db}" ]]; then
     mkdir \
       -p \
@@ -2589,17 +2593,17 @@ _github_auto_detect() {
 
 _gitlab_auto_detect() {
   local \
-    _namespace \
-    _token_private
-  for _namespace in "${target_namespaces[@]}"; do
-    _token_private="${HOME}/.config/${_service}.com/${_namespace}.txt"
-    if [[ -e "${_token_private}" ]]; then
-      git_services+=(
-        "gitlab"
-      )
-      break
-    fi
-  done
+    _token_dir
+  _token_dir="${HOME}/.config/gitlab.com"
+  _tokens_amount="$(
+    _gitlab_token_private_dir_scan |
+      wc \
+       -l)"
+  if (( 0 < "${_tokens_amount}" )); then
+     git_services+=(
+      "gitlab"
+    )
+  fi
 }
 
 _git_services_auto_detect() {
@@ -2896,6 +2900,7 @@ _target_namespaces_auto_detect() {
     target_namespaces+=( $(
       _gur_namespaces_get)
     )
+    echo "ciao ${target_namespaces[@]}"
   fi
 }
 
@@ -2916,8 +2921,8 @@ _set_overrides() {
     "run" \
     "date" \
     "$(_get_date_human)"
-  _target_namespaces_auto_detect
   _git_services_auto_detect
+  _target_namespaces_auto_detect
   _set_override \
     "wallet" \
     "name" \
