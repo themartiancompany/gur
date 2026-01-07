@@ -642,18 +642,50 @@ _github_repo_new() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
-    _gh_opts=()
+    _gh_opts=() \
+    _user_missing_error=()
+  _user_missing_error+=(
+    "HTTP 404: Not Found"
+    "(https://api.github.com/users/${_namespace})"
+  )
   _gh_opts+=(
     --private
     "${_namespace}/${_repo}"
   )
-  gh \
-    repo \
-      create \
-      "${_gh_opts[@]}"
+  _create="$(
+    gh \
+      repo \
+        create \
+        "${_gh_opts[@]}" || \
+    true)"
+  if [[ "${_create}" == "${_user_missing_error}" ]]; then
+    _msg=(
+      "Can't create repository '${_repo}' on"
+      "non-existent '${_namespace}' Github.com"
+      "namespace."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
+  elif [[ "${_create}" != "${_user_missing_error}" ]]; then
+    echo \
+      "${_create}"
+  fi
 }
 
 _namespaces_get() {
+  local \
+    _user="${1}" \
+    _git_service
+  _git_service="gitlab"
+  if (( 1 < "${#}" )); then
+    _git_service="${2}"
+  fi
+  "_${_git_service}_namespaces_get" \
+    "${_user}"
+}
+
+_gitlab_namespaces_get() {
   local \
     _user="${1}" \
     _api \
@@ -782,7 +814,8 @@ _gitlab_repo_new() {
   )
   _repo_new_out="$(
     curl \
-      "${_curl_opts[@]}")"
+      "${_curl_opts[@]}" \
+      "${_url}")"
 }
 
 _repo_new() {
@@ -1051,18 +1084,34 @@ _gitlab_quota_get() {
 _github_repo_exists() {
   local \
     _namespace="${1}" \
-    _repo="${2}"
-  gh \
-    auth \
-      switch \
-      -u \
-        "${_namespace}"
-  _exists="$(
+    _repo="${2}" \
+    _switch_error=()
+  _switch_error=(
+    "no accounts matched that criteria"
+  )
+  _switch="$(
     gh \
-      repo \
-        view \
-          "${_namespace}/${_repo}" 2>"/dev/null" || \
-    true)" 
+      auth \
+        switch \
+        -u \
+          "${_namespace}" \
+        2>&1)"
+  if [[ "${_switch}" == "${_switch_error[*]}" ]]; then
+    _msg=(
+      "No '${_namespace}' account"
+      "configured for Github.com."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    _exists=""
+  elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
+    _exists="$(
+      gh \
+        repo \
+          view \
+            "${_namespace}/${_repo}" 2>"/dev/null" || \
+      true)" 
+  fi
 }
 
 _gitlab_repo_exists() {
@@ -1515,6 +1564,7 @@ _project_id_get() {
     _namespace="${1}" \
     _repo="${2}" \
     _curl_opts=() \
+    _project_id \
     _token_private \
     _token
   _token_private_get \
@@ -1529,11 +1579,15 @@ _project_id_get() {
     --header
       "${_token}"
   )
-  curl \
-    "${_curl_opts[@]}" \
-    "https://gitlab.com/api/v4/projects/${_namespace}%2F${_repo}" | \
-    jq \
-      '.id'
+  _project_id="$(
+    curl \
+      "${_curl_opts[@]}" \
+      "https://gitlab.com/api/v4/projects/${_namespace}%2F${_repo}" | \
+      jq \
+      '.id')"
+  if [[ "${_project_id}" == "null" ]]; then
+    _project_id=""
+  fi
 }
 
 _artifacts_get() {
@@ -2121,6 +2175,21 @@ _gur_namespaces_get() {
     "${_namespaces_db}"
 }
 
+_gitlab_namespace_enabled_get() {
+  local \
+    _namespace="${1}" \
+    _namespaces_array=() \
+    _token_private \
+    _token
+  _gitlab_namespaces_array_get \
+    "${_namespace}"
+  if [[ " ${_namespaces_array[*]} " == *" ${_namespace} "* ]]; then
+    _namespace_enabled="true"
+  elif [[ " ${_namespaces_array[*]} " != *" ${_namespace} "* ]]; then
+    _namespace_enabled="false"
+  fi
+}
+
 _gur_sync() {
   local \
     _git_service="${1}" \
@@ -2144,34 +2213,50 @@ _gur_sync() {
   fi
   for _namespace in "${target_namespaces[@]}"; do
     for _service in "${_git_services[@]}"; do
-      _remote="${_namespace}-${_service}"
-      _remote_exists="$(
-        git \
-          remote |
-          grep \
-           "${_remote}" || \
-        true)"
-      if [[ "${_remote_exists}" == "" ]]; then
-        # Currently expects a working SSH configuration
-        # for hostname '<namespace>-<service>'.
-        _url="${_remote}:${_namespace}/${_target_key}"
-        git \
-          remote \
-            add \
-            "${_remote}" \
-            "${_url}"
+      if [[ "${_service}" == "gitlab" ]]; then
+        _gitlab_namespace_enabled_get \
+          "${_namespace}"
+      else
+        _namespace_enabled="true"
       fi
-      _repo_check \
-        "${_namespace}" \
-        "${_repo}" \
-        "${_service}"
-      _msg=(
-        "Pushing to '${_remote}'."
-      )
-      echo "${PWD}"
-      git \
-        push \
-          "${_remote}"
+      if [[ "${_namespace_enabled}" == "false" ]]; then
+        _msg=(
+          "Service '${_service}'"
+          "not configured for namespace"
+          "'${_namespace}'."
+        )
+        _msg_info \
+          "${_msg[*]}"
+      elif [[ "${_namespace_enabled}" == "true" ]]; then
+        _remote="${_namespace}-${_service}"
+        _remote_exists="$(
+          git \
+            remote |
+            grep \
+             "${_remote}" || \
+          true)"
+        if [[ "${_remote_exists}" == "" ]]; then
+          # Currently expects a working SSH configuration
+          # for hostname '<namespace>-<service>'.
+          _url="${_remote}:${_namespace}/${_target_key}"
+          git \
+            remote \
+              add \
+              "${_remote}" \
+              "${_url}"
+        fi
+        _repo_check \
+          "${_namespace}" \
+          "${_repo}" \
+          "${_service}"
+        _msg=(
+          "Pushing to '${_remote}'."
+        )
+        git \
+          push \
+            "${_remote}"
+      fi || \
+      true
     done
   done
 }
@@ -2722,25 +2807,49 @@ _gitlab_username_get() {
     "${_username}"
 }
 
+_gitlab_namespaces_array_get() {
+  local \
+    _namespace="${1}" \
+    _namespaces \
+    _token_private \
+    _username
+  _gitlab_namespaces_get \
+    "${_namespace}"
+  _namespaces_array=( $(
+    echo \
+      "${_namespaces}" |
+      jq \
+        --raw-output \
+        '.[].path' || \
+      true)
+  )
+}
+
+_gitlab_token_private_dir_scan() {
+  local \
+    _pat_dir
+  _pat_dir="${HOME}/.config/gitlab.com"
+  find \
+    "${_pat_dir}" \
+    -maxdepth \
+      1 \
+    \( -type \
+      "f" \
+    -o \
+    -type \
+      "l" \
+    \)
+}
+
 _gitlab_namespaces_auto_detect() {
   local \
     _namespace \
-    _namespaces=() \
+    _namespaces_array=() \
     _pat_dir \
     _target_namespace \
     _token
-  _pat_dir="${HOME}/.config/gitlab.com"
   for _token \
-    in $(find \
-           "${_pat_dir}" \
-           -maxdepth \
-             1 \
-           \( -type \
-             "f" \
-           -o \
-           -type \
-             "l" \
-           \) ); do
+    in $(_gitlab_token_private_dir_scan); do
     _namespace="$(
       basename \
         "${_token%.txt}")"
@@ -2754,18 +2863,9 @@ _gitlab_namespaces_auto_detect() {
       )
       _msg_info \
         "${_msg[*]}"
-      _namespaces_get \
-        "${_namespace}" || \
-        true
-      _namespaces=( $(
-        echo \
-          "${_namespaces}" |
-          jq \
-            --raw-output \
-            '.[].path' || \
-          true)
-      )
-      if [[ " ${_namespaces[*]} " == *" ${_namespace} "*  ]]; then
+      _gitlab_namespaces_array_get \
+        "${_namespace}"
+      if [[ " ${_namespaces_array[*]} " == *" ${_namespace} "*  ]]; then
         if [[ " ${target_namespaces[*]} " != *" ${_namespace} "* ]]; then
           target_namespaces+=(
             "${_namespace}"
