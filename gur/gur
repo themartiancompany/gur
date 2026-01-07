@@ -2163,7 +2163,6 @@ _gur_namespaces_get() {
         "${_update_last_file}"
     fi
   fi
-    echo "merda ${git_services[*]} ${target_namespaces[*]}" 1>&2
   if [[ ! -e "${_namespaces_db}" ]]; then
     mkdir \
       -p \
@@ -2876,12 +2875,6 @@ _gitlab_namespaces_auto_detect() {
       _gitlab_token_owner_get \
         "${_namespace}")"
     if [[ "${_username}" != "" ]]; then
-      _msg=(
-        "Found username '${_username}'"
-        "for token '${_namespace}'."
-      )
-      _msg_info \
-        "${_msg[*]}"
       _gitlab_namespaces_array_get \
         "${_namespace}"
       if [[ " ${_namespaces_array[*]} " == *" ${_namespace} "*  ]]; then
@@ -2896,11 +2889,12 @@ _gitlab_namespaces_auto_detect() {
 }
 
 _target_namespaces_auto_detect() {
+  local \
+    _msg=()
   if [[ "0" == "${#target_namespaces[@]}" ]]; then
     target_namespaces+=( $(
       _gur_namespaces_get)
     )
-    echo "ciao ${target_namespaces[@]}"
   fi
 }
 
