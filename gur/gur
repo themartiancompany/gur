@@ -643,8 +643,7 @@ _github_repo_new() {
     _namespace="${1}" \
     _repo="${2}" \
     _gh_opts=() \
-    _user_missing_error=() \
-    _repo_new_fail
+    _user_missing_error=()
   _repo_new_failed=""
   _user_missing_error+=(
     "HTTP 404: Not Found"
@@ -2212,6 +2211,7 @@ _gur_sync() {
     _namespace \
     _namespaces=() \
     _remote \
+    _repo_new_failed \
     _service \
     _msg=()
   _namespaces=( $(
@@ -2225,6 +2225,7 @@ _gur_sync() {
   fi
   for _namespace in "${target_namespaces[@]}"; do
     for _service in "${_git_services[@]}"; do
+      _repo_new_failed=""
       if [[ "${_service}" == "gitlab" ]]; then
         _gitlab_namespace_enabled_get \
           "${_namespace}"
