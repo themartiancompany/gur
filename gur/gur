@@ -658,7 +658,7 @@ _github_repo_new() {
         create \
         "${_gh_opts[@]}" || \
     true)"
-  if [[ "${_create}" == "${_user_missing_error}" ]]; then
+  if [[ "${_create}" == "${_user_missing_error[*]}" ]]; then
     _msg=(
       "Can't create repository '${_repo}' on"
       "non-existent '${_namespace}' Github.com"
@@ -667,7 +667,7 @@ _github_repo_new() {
     _msg_error \
       "${_msg[*]}" \
       0
-  elif [[ "${_create}" != "${_user_missing_error}" ]]; then
+  elif [[ "${_create}" != "${_user_missing_error[*]}" ]]; then
     echo \
       "${_create}"
   fi
