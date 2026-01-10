@@ -44,6 +44,7 @@ _global_variables() {
   target_command=""
   target_key=""
   target_value=""
+  repo_type=""
   cache_dir=""
   http="https://github.com"
   mirror_description=(
@@ -1315,6 +1316,9 @@ _ci_check_local() {
     _pkg_dir \
     _ci_file
   _pkg_dir="${_cache_dir}/packages/${_target_repo}"
+  mkdir \
+    -p \
+    "${_pkg_dir}"
   _ci_file="${_pkg_dir}/ci"
   _checked="$(
     cat \
@@ -1575,6 +1579,7 @@ _project_id_get() {
     _namespace="${1}" \
     _repo="${2}" \
     _curl_opts=() \
+    _project \
     _project_id \
     _token_private \
     _token
@@ -1590,15 +1595,20 @@ _project_id_get() {
     --header
       "${_token}"
   )
-  _project_id="$(
+  _project="$(
     curl \
       "${_curl_opts[@]}" \
-      "https://gitlab.com/api/v4/projects/${_namespace}%2F${_repo}" | \
+      "https://gitlab.com/api/v4/projects/${_namespace}%2F${_repo}")"
+  _project_id="$(
+    echo \
+      "${_project}" |
       jq \
       '.id')"
   if [[ "${_project_id}" == "null" ]]; then
     _project_id=""
   fi
+  echo \
+    "${_project_id}"
 }
 
 _artifacts_get() {
@@ -1942,6 +1952,17 @@ _gitlab_log_get() {
     _project_id_get \
       "${_namespace}" \
       "${_repo}-ur")"
+  if [[ "${_project_id}" == "" ]]; then
+    _msg=(
+      "Retrieved null project"
+      "id for project '${_repo}'"
+      "on namespace '${_namespace}'"
+      "on Gitlab.com."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
   _gitlab_job_latest_get \
     "${_project_id}"
   _msg=(
@@ -2294,8 +2315,14 @@ _gur_build() {
     _tag \
     _committed \
     _tag_exists \
+    _target_repo \
     _remote \
     _msg=()
+  _target_repo="${_target_key}"
+  _ci_check \
+    "${_target_namespace}" \
+    "${_target_repo}" \
+    "${_git_service}"
   _remote="${_target_namespace}-gitlab"
   _pkgbuild="${PWD}/PKGBUILD"
   # TODO:
@@ -2478,9 +2505,10 @@ _gur() {
     _git_services_amount="${1}" \
     _target_namespaces_amount="${2}" \
     _cache_dir="${3}" \
-    _target_command="${4}" \
-    _target_key="${5}" \
-    _target_value="${6}" \
+    _repo_type="${4}" \
+    _target_command="${5}" \
+    _target_key="${6}" \
+    _target_value="${7}" \
     _git_services=() \
     _target_namespaces=() \
     _repos=() \
@@ -2488,7 +2516,7 @@ _gur() {
     _msg=() \
     _service
   shift \
-    6
+    7
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -2527,12 +2555,14 @@ _gur() {
         "${_cache_dir}"
       done
   elif [[ "${_target_command}" == "build" ]]; then
-    _gur_build \
-      "${_service}" \
-      "${_target_namespace}" \
-      "${_target_key}" \
-      "${_target_value}" \
-      "${_cache_dir}"
+    if [[ " ${git_services[@]} " == *" gitlab "* ]]; then
+      _gur_build \
+        "gitlab" \
+        "${_target_namespace}" \
+        "${_target_key}" \
+        "${_target_value}" \
+        "${_cache_dir}"
+      fi
   elif [[ "${_target_command}" == "sync" ]]; then
     # TODO:
     _gur_sync \
@@ -3111,6 +3141,7 @@ app_opts=(
   "${git_services_amount}"
   "${target_namespaces_amount}"
   "${cache_dir}"
+  "${repo_type}"
   "${target_command}"
   "${target_key}"
   "${target_value}"
