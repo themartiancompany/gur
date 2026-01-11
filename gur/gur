@@ -2932,6 +2932,24 @@ _target_namespaces_auto_detect() {
   fi
 }
 
+_repo_type_auto_detect() {
+  local \
+    _repo_type
+  _repo_type=""
+  if [[ "${target_command}" == "sync" ]]; then
+    if [[ "${target_key}" == "${PWD}" && \
+          -e "${PWD}/PKGBUILD" ]]; then
+      _repo_type="ur"
+    else
+      _repo_type="source"
+    fi
+  fi
+  _set_override \
+    "repo" \
+    "type" \
+    "${_repo_type}"
+}
+
 _set_overrides() {
   git_services_amount="${#git_services[@]}"
   target_namespaces_amount="${#target_namespaces[@]}"
@@ -2957,6 +2975,7 @@ _set_overrides() {
     "${target_namespaces[0]}"
   _cache_dir_auto_detect
   target_namespaces_amount="${#target_namespaces[@]}"
+  _repo_type_auto_detect
 }
 
 
@@ -3024,6 +3043,11 @@ Usage:
      -N <namespace>         Target namespace for the Ur
                             repositories.
                             Default: ${target_namespace}
+     -t <repo-type>         Build and sync option.
+                            It can be 'ur' (universal recipe)
+                            or 'source' (the Git source repository
+                            for an universal recipe).
+                            Default: ${repo_type}
      -W <cache-dir>         Location where to temporary store
                             the downloaded resource chunks.
                             Default: ${cache_dir}
@@ -3058,6 +3082,7 @@ _show_config() {
   _msg_info "                       Run date:   ${run_date}"
   _msg_info "                   Git services:   ${git_services[*]}"
   _msg_info "              Target namespaces:   ${target_namespaces[*]}"
+  _msg_info "                Repository type:   ${repo_type}"
   _msg_info "                Cache directory:   ${cache_dir}"
   _msg_info "                 Target command:   ${target_command}"
   _msg_info "                     Target key:   ${target_key}"
@@ -3072,7 +3097,7 @@ _config_user_init \
 # shellcheck disable=SC2034
 while \
   getopts \
-    'm:N:W:cvh?' \
+    'm:N:t:W:cvh?' \
     arg; do
   case \
     "${arg}" in
@@ -3084,6 +3109,8 @@ while \
       target_namespaces+=(
         "${OPTARG}"
       ) ;;
+    t)
+      override_repo_type="${OPTARG}" ;;
     W)
       override_cache_dir="${OPTARG}" ;;
     c)
