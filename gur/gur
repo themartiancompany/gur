@@ -1581,8 +1581,27 @@ _gitlab_env_set() {
     curl \
       "${_curl_opts[@]}" \
       "${_url}")"
-  echo \
-    "Curl output: '${_out}'"
+  _hidden="$(
+    echo \
+      "${_out}" |
+      jq \
+        --raw-output \
+        '.hidden')"
+  _masked="$(
+    echo \
+      "${_out}" |
+      jq \
+        --raw-output \
+        '.masked')"
+  if [[ "${_hidden}" == "true" && \
+        "${_masked}" == "true" ]]; then
+    _msg=(
+      "Variable '${_key}' correctly"
+      "written."
+    )
+    _msg_info \
+     "${_msg[*]}" 
+  fi
 }
 
 _project_id_get() {
@@ -2236,6 +2255,82 @@ _gitlab_namespace_enabled_get() {
   fi
 }
 
+_repo_sync() {
+  local \
+    _git_service="${1}" \
+    _namespace="${2}" \
+    _repo="${3}" \
+    _repo_name="${4}" \
+    _namespace_enabled \
+    _protocol \
+    _remote \
+    _remote_exists \
+    _url \
+    _msg=()
+  _protocol="ssh"
+  if (( 4 < "${#}" )); then
+    _protocol="${5}"
+  fi
+  _repo_new_failed=""
+  if [[ "${_git_service}" == "gitlab" ]]; then
+    _gitlab_namespace_enabled_get \
+      "${_namespace}"
+  else
+    _namespace_enabled="true"
+  fi
+  if [[ "${_namespace_enabled}" == "false" ]]; then
+    _msg=(
+      "Service '${_git_service}'"
+      "not configured for namespace"
+      "'${_namespace}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ "${_namespace_enabled}" == "true" ]]; then
+    _remote="${_namespace}-${_git_service}"
+    _remote_exists="$(
+      git \
+        remote |
+        grep \
+         "${_remote}" || \
+      true)"
+    if [[ "${_remote_exists}" == "" ]]; then
+      # Currently expects a working SSH configuration
+      # for hostname '<namespace>-<git-service>'.
+      if [[ "${_protocol}" == "ssh" ]]; then
+        _url="${_remote}:${_namespace}/${_repo}"
+      fi
+      git \
+        remote \
+          add \
+          "${_remote}" \
+          "${_url}"
+    fi
+    _repo_check \
+      "${_namespace}" \
+      "${_repo}" \
+      "${_git_service}"
+    if [[ "${_repo_new_failed}" != "true" ]]; then
+      _msg=(
+        "Pushing to '${_remote}'."
+      )
+      git \
+        push \
+          "${_remote}"
+      if [[ "${_repo_type}" == "ur" ]]; then
+        _ci_check \
+          "${_namespace}" \
+          "${_repo_name}" \
+          "${_git_service}"
+      fi
+      git \
+        push \
+          "${_remote}" \
+          --tags
+    fi
+  fi
+}
+
 _gur_sync() {
   local \
     _git_service="${1}" \
@@ -2264,62 +2359,12 @@ _gur_sync() {
   fi
   for _namespace in "${target_namespaces[@]}"; do
     for _service in "${_git_services[@]}"; do
-      _repo_new_failed=""
-      if [[ "${_service}" == "gitlab" ]]; then
-        _gitlab_namespace_enabled_get \
-          "${_namespace}"
-      else
-        _namespace_enabled="true"
-      fi
-      if [[ "${_namespace_enabled}" == "false" ]]; then
-        _msg=(
-          "Service '${_service}'"
-          "not configured for namespace"
-          "'${_namespace}'."
-        )
-        _msg_info \
-          "${_msg[*]}"
-      elif [[ "${_namespace_enabled}" == "true" ]]; then
-        _remote="${_namespace}-${_service}"
-        _remote_exists="$(
-          git \
-            remote |
-            grep \
-             "${_remote}" || \
-          true)"
-        if [[ "${_remote_exists}" == "" ]]; then
-          # Currently expects a working SSH configuration
-          # for hostname '<namespace>-<service>'.
-          _url="${_remote}:${_namespace}/${_repo}"
-          git \
-            remote \
-              add \
-              "${_remote}" \
-              "${_url}"
-        fi
-        _repo_check \
-          "${_namespace}" \
-          "${_repo_name}" \
-          "${_service}"
-        if [[ "${_repo_new_failed}" != "true" ]]; then
-          _msg=(
-            "Pushing to '${_remote}'."
-          )
-          git \
-            push \
-              "${_remote}"
-          if [[ "${_repo_type}" == "ur" ]]; then
-            _ci_check \
-              "${_namespace}" \
-              "${_repo}" \
-              "${_service}"
-          fi
-          git \
-            push \
-              "${_remote}" \
-              --tags
-        fi
-      fi || \
+      _repo_sync \
+        "${_service}" \
+        "${_namespace}" \
+        "${_repo}" \
+        "${_repo_name}" \
+        "ssh" || \
       true
     done
   done
