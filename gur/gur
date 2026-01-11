@@ -363,7 +363,7 @@ _github_secrets_get() {
     gh \
       "${_gh_opts[@]}" \
       secret \
-        list | \
+        list |
         awk \
           '{print $1}')
   )
@@ -730,8 +730,9 @@ _gitlab_namespaces_get() {
   if [[ "${_namespaces}" == "" ]]; then
     _msg=(
       "Found no namespaces"
-      "corresponding to user"
-      "'${_user}'."
+      "corresponding to token"
+      "'${_token_private}' for user"
+      "'${_user}' on Gitlab.com."
     )
     _msg_error \
       "${_msg[*]}" \
@@ -1785,9 +1786,9 @@ _gitlab_pipelines_get() {
     "https://gitlab.com/api/v4/projects/${_project_id}/pipelines?per_page=20&sort=desc"
   _jobs+=( $(
     cat \
-      "${_cache_dir}/pipelines.json" | \
+      "${_cache_dir}/pipelines.json" |
       jq \
-        '.[]' | \
+        '.[]' |
         jq \
           '.id')
   )
@@ -1804,12 +1805,12 @@ _gitlab_pipelines_get() {
 _gitlab_release_latest_get() {
   _tag="$(
     cat \
-      "${_cache_dir}/releases.json" | \
+      "${_cache_dir}/releases.json" |
       jq \
         --raw-output \
-        '.[].tag_name' | \
+        '.[].tag_name' |
         sort \
-          -V | \
+          -V |
         tail \
           -n \
             1)"
@@ -1865,7 +1866,7 @@ _gitlab_release_get() {
   fi
   _urls+=( $(
     cat \
-      "${_cache_dir}/releases.json" | \
+      "${_cache_dir}/releases.json" |
       jq \
         --raw-output \
         '.[] | select(.tag_name == "'${_tag}'").assets.links.[].direct_asset_url')
@@ -1890,7 +1891,7 @@ _releases_get() {
     "${_namespace}" \
     "${_repo}"
   cat \
-    "${_cache_dir}/releases.json" | \
+    "${_cache_dir}/releases.json" |
   jq
 }
 
@@ -2064,9 +2065,9 @@ _gitlab_jobs_get() {
     "https://gitlab.com/api/v4/projects/${_project_id}/jobs?per_page=20"
   _jobs+=( $(
     cat \
-      "${_cache_dir}/jobs.json" | \
+      "${_cache_dir}/jobs.json" |
       jq \
-        '.[]' | \
+        '.[]' |
         jq \
           '.id')
   )
@@ -2465,7 +2466,7 @@ _gur_check() {
     for _repo in "${_repos[@]}"; do
       _checked="$(
         cat \
-          "${_cache_dir}/checked.db" | \
+          "${_cache_dir}/checked.db" |
           grep \
             "${_repo}" || \
           true)"
@@ -2965,6 +2966,7 @@ _repo_info_auto_detect() {
         target_key="${_repo_name}"
       fi
     else
+      if [[ -e ".git" ]]; 
       _repo_type="source"
     fi
   fi
