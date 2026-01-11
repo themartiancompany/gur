@@ -1586,13 +1586,15 @@ _gitlab_env_set() {
       "${_out}" |
       jq \
         --raw-output \
-        '.hidden')"
+        '.hidden' || \
+      true)"
   _masked="$(
     echo \
       "${_out}" |
       jq \
         --raw-output \
-        '.masked')"
+        '.masked' || \
+      true)"
   if [[ "${_hidden}" == "true" && \
         "${_masked}" == "true" ]]; then
     _msg=(
