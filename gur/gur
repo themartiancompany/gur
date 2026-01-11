@@ -2299,7 +2299,7 @@ _gur_sync() {
         fi
         _repo_check \
           "${_namespace}" \
-          "${_repo}" \
+          "${_repo_name}" \
           "${_service}"
         if [[ "${_repo_new_failed}" != "true" ]]; then
           _msg=(
@@ -2308,6 +2308,12 @@ _gur_sync() {
           git \
             push \
               "${_remote}"
+          if [[ "${_repo_type}" == "ur" ]]; then
+            _ci_check \
+              "${_namespace}" \
+              "${_repo}" \
+              "${_service}"
+          fi
           git \
             push \
               "${_remote}" \
