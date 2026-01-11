@@ -2376,7 +2376,7 @@ _gur_build() {
   local \
     _git_service="${1}" \
     _target_namespace="${2}" \
-    _target_key="${3}" \
+    _repo_name="${3}" \
     _target_value="${4}" \
     _cache_dir="${5}" \
     _pkgbuild \
@@ -2628,7 +2628,7 @@ _gur() {
       _gur_build \
         "gitlab" \
         "${_target_namespace}" \
-        "${_target_key}" \
+        "${_repo_name}" \
         "${_target_value}" \
         "${_cache_dir}"
       fi
@@ -3008,7 +3008,8 @@ _repo_info_auto_detect() {
     _repo_name
   _repo_type=""
   _repo_name=""
-  if [[ "${target_command}" == "sync" ]]; then
+  if [[ "${target_command}" == "sync" || \
+        "${target_command}" == "sync" ]]; then
     _repo_name="$(
       basename \
         "${PWD}")"
