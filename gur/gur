@@ -45,6 +45,7 @@ _global_variables() {
   target_key=""
   target_value=""
   repo_type=""
+  repo_name=""
   cache_dir=""
   http="https://github.com"
   mirror_description=(
@@ -1097,7 +1098,16 @@ _github_repo_exists() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
-    _switch_error=()
+    _switch_error=() \
+    _msg=()
+  _msg=(
+    "Checking existence of"
+    "repository '${_repo}'"
+    "on namespace '${_namespace}'"
+    "on Github.com"
+  )
+  _msg_info \
+    "${_msg[*]}"
   _switch_error=(
     "no accounts matched that criteria"
   )
@@ -2229,9 +2239,10 @@ _gur_sync() {
   local \
     _git_service="${1}" \
     _target_namespace="${2}" \
-    _target_key="${3}" \
+    _repo_name="${3}" \
     _target_value="${4}" \
     _cache_dir="${5}" \
+    _repo_type="${6}" \
     _namespace \
     _namespaces=() \
     _remote \
@@ -2241,7 +2252,10 @@ _gur_sync() {
   _namespaces=( $(
     _gur_namespaces_get)
   )
-  _repo="${_target_key}"
+  _repo="${_repo_name}"
+  if [[ "${_repo_type}" == "ur" ]]; then
+    _repo="${_repo_name}-ur"
+  fi
   if [[ "${_repo}" == "" ]]; then
     _repo="$(
       basename \
@@ -2275,7 +2289,7 @@ _gur_sync() {
         if [[ "${_remote_exists}" == "" ]]; then
           # Currently expects a working SSH configuration
           # for hostname '<namespace>-<service>'.
-          _url="${_remote}:${_namespace}/${_target_key}"
+          _url="${_remote}:${_namespace}/${_repo}"
           git \
             remote \
               add \
@@ -2506,9 +2520,10 @@ _gur() {
     _target_namespaces_amount="${2}" \
     _cache_dir="${3}" \
     _repo_type="${4}" \
-    _target_command="${5}" \
-    _target_key="${6}" \
-    _target_value="${7}" \
+    _repo_name="${5}" \
+    _target_command="${6}" \
+    _target_key="${7}" \
+    _target_value="${8}" \
     _git_services=() \
     _target_namespaces=() \
     _repos=() \
@@ -2516,7 +2531,7 @@ _gur() {
     _msg=() \
     _service
   shift \
-    7
+    8
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -2568,9 +2583,10 @@ _gur() {
     _gur_sync \
       "${_service}" \
       "${_target_namespace}" \
-      "${_target_key}" \
+      "${_repo_name}" \
       "${_target_value}" \
-      "${_cache_dir}"
+      "${_cache_dir}" \
+      "${_repo_type}"
   else
     _msg=(
       "Unknown command '${_target_command}'."
@@ -2932,14 +2948,22 @@ _target_namespaces_auto_detect() {
   fi
 }
 
-_repo_type_auto_detect() {
+_repo_info_auto_detect() {
   local \
-    _repo_type
+    _repo_type \
+    _repo_name
   _repo_type=""
+  _repo_name=""
   if [[ "${target_command}" == "sync" ]]; then
-    if [[ "${target_key}" == "${PWD}" && \
-          -e "${PWD}/PKGBUILD" ]]; then
-      _repo_type="ur"
+    _repo_name="$(
+      basename \
+        "${PWD}")"
+    if [[ "${target_key}" == "${_repo_name}" || \
+          "${target_key}" == "" ]]; then
+      if [[ -e "${PWD}/PKGBUILD" ]]; then
+        _repo_type="ur"
+        target_key="${_repo_name}"
+      fi
     else
       _repo_type="source"
     fi
@@ -2948,6 +2972,10 @@ _repo_type_auto_detect() {
     "repo" \
     "type" \
     "${_repo_type}"
+  _set_override \
+    "repo" \
+    "name" \
+    "${_repo_name}"
 }
 
 _set_overrides() {
@@ -2975,7 +3003,7 @@ _set_overrides() {
     "${target_namespaces[0]}"
   _cache_dir_auto_detect
   target_namespaces_amount="${#target_namespaces[@]}"
-  _repo_type_auto_detect
+  _repo_info_auto_detect
 }
 
 
@@ -3080,6 +3108,7 @@ _display_flags() {
 _show_config() {
   _msg_info "${app_name} configuration"
   _msg_info "                       Run date:   ${run_date}"
+  _msg_info "                   Project name:   ${repo_name}"
   _msg_info "                   Git services:   ${git_services[*]}"
   _msg_info "              Target namespaces:   ${target_namespaces[*]}"
   _msg_info "                Repository type:   ${repo_type}"
@@ -3169,6 +3198,7 @@ app_opts=(
   "${target_namespaces_amount}"
   "${cache_dir}"
   "${repo_type}"
+  "${repo_name}"
   "${target_command}"
   "${target_key}"
   "${target_value}"
