@@ -2964,7 +2964,7 @@ _repo_info_auto_detect() {
       if [[ -e "${PWD}/PKGBUILD" ]]; then
         _repo_type="ur"
         target_key="${_repo_name}"
-      elif [[ -e ".git" ]]; 
+      elif [[ -e ".git" ]]; then
         _repo_type="source"
       fi
     else
