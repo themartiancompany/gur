@@ -2964,10 +2964,13 @@ _repo_info_auto_detect() {
       if [[ -e "${PWD}/PKGBUILD" ]]; then
         _repo_type="ur"
         target_key="${_repo_name}"
+      elif [[ -e ".git" ]]; 
+        _repo_type="source"
       fi
     else
-      if [[ -e ".git" ]]; 
-      _repo_type="source"
+      if [[ -e ".git" ]]; then
+        _repo_type="source"
+      fi
     fi
   fi
   _set_override \
