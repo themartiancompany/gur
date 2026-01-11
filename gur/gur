@@ -2330,7 +2330,8 @@ _repo_sync() {
           "${_remote}" \
           --tags
     fi
-  fi
+  fi || \
+  true
 }
 
 _gur_sync() {
@@ -2366,8 +2367,7 @@ _gur_sync() {
         "${_namespace}" \
         "${_repo}" \
         "${_repo_name}" \
-        "ssh" || \
-      true
+        "ssh" &
     done
   done
 }
@@ -3008,7 +3008,7 @@ _repo_info_auto_detect() {
     _repo_name
   _repo_type=""
   _repo_name=""
-  if [[ "${target_command}" == "sync" || \
+  if [[ "${target_command}" == "build" || \
         "${target_command}" == "sync" ]]; then
     _repo_name="$(
       basename \
