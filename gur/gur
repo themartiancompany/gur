@@ -1963,7 +1963,7 @@ _log_get() {
   fi
   "_${_git_service}_log_get" \
     "${_namespace}" \
-    "${_repo}"
+    "${_repo_name}"
 }
 
 _gitlab_log_get() {
@@ -2131,13 +2131,13 @@ _gur_get() {
       "${_target_namespace}"
     echo \
       "${_repos[@]}"
-  elif [[ " ${_target_value} " == "" ]]; then
+  elif [[ "${_target_value}" == "" ]]; then
+    _target_value="${_repo_name}"
     _msg=(
-      "A repository must be provided."
+      "Using '${_repo_name}' as repo name."
       )
-    _msg_error \
-      "${_msg[*]}" \
-      1
+    _msg_info \
+      "${_msg[*]}"
   fi
   if [[ "${_target_key}" == "quota" ]]; then
     _namespace_user="${_target_namespace}"
@@ -2263,10 +2263,12 @@ _repo_sync() {
     _namespace="${2}" \
     _repo="${3}" \
     _repo_name="${4}" \
-    _namespace_enabled \
     _protocol \
+    _namespace_enabled \
+    _push \
     _remote \
     _remote_exists \
+    _tags_push \
     _url \
     _msg=()
   _protocol="ssh"
@@ -2316,19 +2318,49 @@ _repo_sync() {
       _msg=(
         "Pushing to '${_remote}'."
       )
-      git \
-        push \
-          "${_remote}"
+      _push="$(
+        git \
+          push \
+            "${_remote}" \
+          2>&1 || \
+          true)"
+      if [[ "${_push}" ==  "Everything up-to-date" ]]; then
+        _msg=(
+          "Remote '${_remote}' already updated."
+        )
+      else
+        _msg=(
+          "Push:"
+          "'${_push}'"
+        )
+      fi
+      _msg_info \
+        "${_msg[*]}"
       if [[ "${_repo_type}" == "ur" ]]; then
         _ci_check \
           "${_namespace}" \
           "${_repo_name}" \
           "${_git_service}"
       fi
-      git \
-        push \
-          "${_remote}" \
-          --tags
+      _tags_push="$(
+        git \
+          push \
+            "${_remote}" \
+            --tags \
+          2>&1 || \
+          true)"
+      if [[ "${_tags_push}" == "Everyhing up-to-date" ]]; then
+        _msg=(
+          "Tags for remote '${_remote}' already updated."
+        )
+      else
+        _msg=(
+          "Push tags:"
+            "${_tags_push}"
+        )
+      fi
+      _msg_info \
+        "${_msg[*]}"
     fi
   fi || \
   true
@@ -2367,7 +2399,7 @@ _gur_sync() {
         "${_namespace}" \
         "${_repo}" \
         "${_repo_name}" \
-        "ssh" &
+        "ssh"
     done
   done
 }
@@ -3002,31 +3034,61 @@ _target_namespaces_auto_detect() {
   fi
 }
 
+_repo_type_get() {
+  local \
+    _dir="${1}"
+  if [[ -e "${_dir}/PKGBUILD" ]]; then
+    _repo_type="ur"
+  elif [[ -e "${_dir}/.git" ]]; then
+    _repo_type="source"
+  fi
+}
+
+_repo_info_build_cmd_auto_detect() {
+  if [[ "${target_command}" == "build" ]]; then
+    if [[ "${target_key}" == "${_repo_name}" || \
+          "${target_key}" == "" ]]; then
+      target_key="${_repo_name}"
+      _repo_type_get \
+        "${PWD}"
+    fi
+  fi
+}
+
+_repo_info_log_cmd_auto_detect() {
+  if [[ "${target_command}" == "get" && \
+        "${target_key}" == "log" ]]; then
+    if [[ "${target_value}" == "${_repo_name}" || \
+          "${target_value}" == "" ]]; then
+      target_value="${_repo_name}"
+      _repo_type_get \
+        "${PWD}"
+    fi
+  fi
+}
+
+_repo_info_sync_cmd_auto_detect() {
+  if [[ "${target_command}" == "sync" ]]; then
+    if [[ "${target_key}" == "${_repo_name}" || \
+          "${target_key}" == "" ]]; then
+      target_key="${_repo_name}"
+      _repo_type_get \
+        "${PWD}"
+    fi
+  fi
+}
+
 _repo_info_auto_detect() {
   local \
     _repo_type \
     _repo_name
   _repo_type=""
-  _repo_name=""
-  if [[ "${target_command}" == "build" || \
-        "${target_command}" == "sync" ]]; then
-    _repo_name="$(
-      basename \
-        "${PWD}")"
-    if [[ "${target_key}" == "${_repo_name}" || \
-          "${target_key}" == "" ]]; then
-      if [[ -e "${PWD}/PKGBUILD" ]]; then
-        _repo_type="ur"
-        target_key="${_repo_name}"
-      elif [[ -e ".git" ]]; then
-        _repo_type="source"
-      fi
-    else
-      if [[ -e ".git" ]]; then
-        _repo_type="source"
-      fi
-    fi
-  fi
+  _repo_name="$(
+    basename \
+      "${PWD}")"
+  _repo_info_build_cmd_auto_detect
+  _repo_info_log_cmd_auto_detect
+  _repo_info_sync_cmd_auto_detect
   _set_override \
     "repo" \
     "type" \
