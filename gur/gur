@@ -1182,8 +1182,9 @@ _repo_exists() {
       "${_namespace}" \
       "${_repo}"
     _checked_local \
-      "${_target_repo}" \
-      "github" \
+      "${_namespace}" \
+      "${_repo}" \
+      "${_service}" \
       "exists"
   fi
 }
@@ -1352,6 +1353,7 @@ _github_ci_check() {
       "${_repo}" \
       "${_git_service}"
     _checked_local \
+      "${_target_namespace}" \
       "${_target_repo}" \
       "github" \
       "ci"
@@ -1389,9 +1391,10 @@ _check_local() {
 
 _checked_local() {
   local \
-    _target_repo="${1}" \
-    _service="${2}" \
-    _object_type="${3}"
+    _namespace="${1}" \
+    _target_repo="${2}" \
+    _service="${3}" \
+    _object_type="${4}"
     _pkg_dir \
     _object_file
   _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
@@ -1445,6 +1448,7 @@ _gitlab_ci_check() {
       "${_repo}" \
       "gitlab"
     _checked_local \
+      "${_target_namespace}" \
       "${_target_repo}" \
       "gitlab" \
       "ci"
