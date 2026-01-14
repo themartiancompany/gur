@@ -1394,14 +1394,14 @@ _checked_local() {
     _namespace="${1}" \
     _target_repo="${2}" \
     _service="${3}" \
-    _object_type="${4}"
-    _pkg_dir \
+    _object_type="${4}" \
+    _object_dir \
     _object_file
-  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
-  _object_file="${_pkg_dir}/${_object_type}"
+  _object_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _object_file="${_object_dir}/${_object_type}"
   mkdir \
     -p \
-    "${_pkg_dir}"
+    "${_object_dir}"
   echo \
     "${_service}" >> \
     "${_object_file}"
