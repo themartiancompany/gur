@@ -1258,6 +1258,7 @@ _github_ci_check() {
   _git_service="github"
   _repo="${_target_repo}-ur"
   _ci_check_local \
+    "${_target_namespace}" \
     "${_target_repo}" \
     "github"
   if [[ "${_checked}" == "true" ]]; then
@@ -1322,11 +1323,12 @@ _github_ci_check() {
 
 _ci_check_local() {
   local \
-    _target_repo="${1}" \
-    _service="${2}" \
+    _namespace="${1}" \
+    _target_repo="${2}" \
+    _service="${3}" \
     _pkg_dir \
     _ci_file
-  _pkg_dir="${_cache_dir}/packages/${_target_repo}"
+  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
   mkdir \
     -p \
     "${_pkg_dir}"
@@ -1353,7 +1355,7 @@ _ci_checked() {
     _service="${2}" \
     _pkg_dir \
     _ci_file
-  _pkg_dir="${_cache_dir}/packages/${_target_repo}"
+  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
   _ci_file="${_pkg_dir}/ci"
   mkdir \
     -p \
@@ -1372,6 +1374,7 @@ _gitlab_ci_check() {
     _repo \
     _checked
   _ci_check_local \
+    "${_target_namespace}" \
     "${_target_repo}" \
     "gitlab"
   _repo="${_target_repo}-ur"
@@ -1674,7 +1677,7 @@ _artifacts_get() {
     -n
       "${_namespace}"
     -o
-      "${_cache_dir}/artifacts.zip"
+      "${_cache_dir}/${_namespace}/artifacts.zip"
     -f
       "zip"
     -C
@@ -1685,15 +1688,15 @@ _artifacts_get() {
     "${_url}"
   mkdir \
     -p \
-    "${_cache_dir}/artifacts"
+    "${_cache_dir}/${_namespace}/artifacts"
   _old_pwd=${PWD}
   cd \
     "${_cache_dir}/artifacts"
   unzip \
     -qq \
-    "${_cache_dir}/artifacts.zip"
+    "${_cache_dir}/${_namespace}/artifacts.zip"
   rm \
-    "${_cache_dir}/artifacts.zip"
+    "${_cache_dir}/${_namespace}/artifacts.zip"
   for _artifact \
     in "./"*; do
     basename \
@@ -2349,7 +2352,7 @@ _repo_sync() {
             --tags \
           2>&1 || \
           true)"
-      if [[ "${_tags_push}" == "Everyhing up-to-date" ]]; then
+      if [[ "${_tags_push}" == "Everything up-to-date" ]]; then
         _msg=(
           "Tags for remote '${_remote}' already updated."
         )
@@ -2687,18 +2690,18 @@ _cache_dir_auto_detect() {
   local \
     _cache_dir \
     _cache_dir_default
-  _cache_dir="${HOME}/.cache/${app_name}/${target_namespaces[0]}"
-  for _namespace in "${target_namespaces[@]}"; do
-    _cache_dir_default="${HOME}/.cache/${app_name}/${_namespace}"
-    if [[ ! -e "${_cache_dir}" ]]; then
-      mkdir \
-        -p \
-        "${_cache_dir_default}"
-      chmod \
-        700 \
-        "${_cache_dir_default}"
-    fi
-  done
+  _cache_dir="${HOME}/.cache/${app_name}"
+  # for _namespace in "${target_namespaces[@]}"; do
+  #   _cache_dir_default="${HOME}/.cache/${app_name}"
+  #   if [[ ! -e "${_cache_dir}" ]]; then
+  #     mkdir \
+  #       -p \
+  #       "${_cache_dir_default}"
+  #     chmod \
+  #       700 \
+  #       "${_cache_dir_default}"
+  #   fi
+  # done
   _set_override \
     "cache" \
     "dir" \
