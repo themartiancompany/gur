@@ -1147,6 +1147,47 @@ _gitlab_repo_exists() {
       "${_repo}")"
 }
 
+_repo_exists() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _service \
+    _checked
+  _service="${_git_services[0]}"
+  if (( 2 < "${#}" )); then
+    _service="${3}"
+  fi
+  _check_local \
+    "${_target_namespace}" \
+    "${_target_repo}" \
+    "${_service}" \
+    "exists"
+  if [[ "${_checked}" == "true" ]]; then
+    _msg=(
+      "Repository"
+      "'${_target_namespace}/${_repo}'"
+      "already exists on '${_service}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ "${_checked}" == "false" ]]; then
+    _msg=(
+      "Creating"
+      "'${_target_namespace}/${_repo}'"
+      "on '${_service}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    "_${_service}_repo_exists" \
+      "${_namespace}" \
+      "${_repo}"
+    _checked_local \
+      "${_target_repo}" \
+      "github" \
+      "exists"
+  fi
+}
+
 _repo_check() {
   local \
     _namespace="${1}" \
@@ -1165,16 +1206,10 @@ _repo_check() {
       -d)"
   cd \
     "${_tmp_dir}"
-  if [[ "${_git_service}" == "github" ]]; then
-    _github_repo_exists \
-      "${_namespace}" \
-      "${_repo}"
-  fi
-  if [[ "${_git_service}" == "gitlab" ]]; then
-    _gitlab_repo_exists \
-      "${_namespace}" \
-      "${_repo}"
-  fi
+  _repo_exists \
+    "${_namespace}" \
+    "${_repo}" \
+    "${_git_service}"
   if [[ "${_exists}" == "" ]]; then
     _msg=(
       "Creating repository"
@@ -1257,10 +1292,11 @@ _github_ci_check() {
     _checked
   _git_service="github"
   _repo="${_target_repo}-ur"
-  _ci_check_local \
+  _check_local \
     "${_target_namespace}" \
     "${_target_repo}" \
-    "github"
+    "github" \
+    "ci"
   if [[ "${_checked}" == "true" ]]; then
     _msg=(
       "Github.com"
@@ -1315,27 +1351,29 @@ _github_ci_check() {
       "${_target_namespace}" \
       "${_repo}" \
       "${_git_service}"
-    _ci_checked \
+    _checked_local \
       "${_target_repo}" \
-      "github"
+      "github" \
+      "ci"
   fi
 }
 
-_ci_check_local() {
+_check_local() {
   local \
     _namespace="${1}" \
     _target_repo="${2}" \
     _service="${3}" \
+    _object_type="${4}" \
     _pkg_dir \
-    _ci_file
+    _object_file
   _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
   mkdir \
     -p \
     "${_pkg_dir}"
-  _ci_file="${_pkg_dir}/ci"
+  _object_file="${_pkg_dir}/${_object_type}"
   _checked="$(
     cat \
-      "${_ci_file}" \
+      "${_object_file}" \
       2>"/dev/null" |
       grep \
         -c \
@@ -1349,20 +1387,21 @@ _ci_check_local() {
   fi
 }
 
-_ci_checked() {
+_checked_local() {
   local \
     _target_repo="${1}" \
     _service="${2}" \
+    _object_type="${3}"
     _pkg_dir \
-    _ci_file
+    _object_file
   _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
-  _ci_file="${_pkg_dir}/ci"
+  _object_file="${_pkg_dir}/${_object_type}"
   mkdir \
     -p \
     "${_pkg_dir}"
   echo \
     "${_service}" >> \
-    "${_ci_file}"
+    "${_object_file}"
 }
 
 _gitlab_ci_check() {
@@ -1373,10 +1412,11 @@ _gitlab_ci_check() {
     _msg=() \
     _repo \
     _checked
-  _ci_check_local \
+  _check_local \
     "${_target_namespace}" \
     "${_target_repo}" \
-    "gitlab"
+    "gitlab" \
+    "ci"
   _repo="${_target_repo}-ur"
   if [[ "${_checked}" == "true" ]]; then
     _msg=(
@@ -1404,9 +1444,10 @@ _gitlab_ci_check() {
       "${_target_namespace}" \
       "${_repo}" \
       "gitlab"
-    _ci_checked \
+    _checked_local \
       "${_target_repo}" \
-      "gitlab"
+      "gitlab" \
+      "ci"
   fi
 }
 
