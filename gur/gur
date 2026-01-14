@@ -1158,8 +1158,8 @@ _repo_exists() {
     _service="${3}"
   fi
   _check_local \
-    "${_target_namespace}" \
-    "${_target_repo}" \
+    "${_namespace}" \
+    "${_repo}" \
     "${_service}" \
     "exists"
   if [[ "${_checked}" == "true" ]]; then
