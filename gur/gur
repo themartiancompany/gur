@@ -138,8 +138,10 @@ _github_repos_get() {
     _lib \
     _msg=() \
     _token_private \
-    _repos_local
-  _repos_file="${_cache_dir}/${_namespace}/github/repos.db"
+    _repos_local \
+    _repos_dir
+  _repos_dir="${_cache_dir}/${_namespace}/github"
+  _repos_file="${_repos_dir}/repos.db"
   _lib="$(
     _get_lib)"
   _repos_get_bin="${_lib}/${app_name}/repos-get"
@@ -198,10 +200,14 @@ _github_repos_get() {
   _array_set \
     "_repos_array" \
     "_repos"
+  mkdir \
+    -p \
+    "${_repos_dir}"
   printf \
     '%s\n' \
     "${_repos[@]}" > \
-    "${_repos_file}"
+    "${_repos_file}" || \
+    true
 }
 
 _gitlab_repos_get() {
@@ -1170,6 +1176,7 @@ _repo_exists() {
     )
     _msg_info \
       "${_msg[*]}"
+    _exists="true"
   elif [[ "${_checked}" == "false" ]]; then
     _msg=(
       "Creating"
@@ -1533,7 +1540,14 @@ _github_env_set() {
     _key="${3}" \
     _value="${4}" \
     _gh_opts=() \
-    _msg=()
+    _env_set_msg \
+    _msg=() \
+    _msg_okay=()
+  _msg_okay+=(
+    "✓ Set Actions secret"
+    "GL_DL_PRIVATE_TOKEN for"
+    "${_target_namespace}/${_target_repo}"
+  )
   _gh_opts+=(
     --repo
       "${_target_namespace}/${_target_repo}"
@@ -1544,13 +1558,34 @@ _github_env_set() {
   )
   _msg_info \
     "${_msg[*]}"
-  gh \
-    secret \
-      "${_gh_opts[@]}" \
-      set \
-        "${_key}" \
-        --body \
-          "${_value}"
+  _env_set_msg="$(
+    gh \
+      secret \
+        "${_gh_opts[@]}" \
+        set \
+          "${_key}" \
+          --body \
+            "${_value}")"
+  if [[ "${_env_set_msg}" == "${_msg_okay[*]}" ]]; then
+    _msg=(
+      "Variable '${_key}' correcly set on"
+      "the 'Github' repository '${_target_repo}'"
+      "on namespace '${_namespace}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  else
+    echo \
+      "${_env_set_msg}"
+    _msg=(
+      "Error setting variable '${_key}'"
+      "on Github.com repository '${_target_repo}'"
+      "on namespace '${_namespace}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
 }
 
 _gitlab_env_set() {
@@ -1871,6 +1906,16 @@ _gitlab_pipelines_get() {
     "${_cache_dir}/jobs.json"
 }
 
+_gitlab_releases_get() {
+  cat \
+    "${_cache_dir}/releases.json" |
+    jq \
+      --raw-output \
+      '.[].tag_name' |
+      sort \
+        -V
+}
+
 _gitlab_release_latest_get() {
   _tag="$(
     cat \
@@ -1959,9 +2004,10 @@ _releases_get() {
   _gitlab_releases_retrieve \
     "${_namespace}" \
     "${_repo}"
-  cat \
-    "${_cache_dir}/releases.json" |
-  jq
+  _gitlab_releases_get
+  # cat \
+  #   "${_cache_dir}/releases.json" |
+  # jq
 }
 
 _gitlab_releases_retrieve() {
