@@ -119,8 +119,13 @@ _get_conf_dir_path() {
 
 _repos_get() {
   local \
-    _namespace="${1}"
-  _github_repos_get \
+    _namespace="${1}" \
+    _service
+  _service="github"
+  if (( 1 < "${#}")); then
+    _service="${2}"
+  fi
+  "_${_service}_repos_get" \
     "${_namespace}"
 }
 
@@ -249,15 +254,11 @@ _gitlab_repos_get() {
     curl \
       "${_curl_opts[@]}" \
       "${_url}")"
-  _repos_get_opts+=(
-    --key
-      "${_token_private}"
-  )
   _msg=(
     "Retrieving list of"
     "Ur mirrors for"
     "'${_namespace}' namespace"
-    "from Github."
+    "from Gitlab."
   )
   _msg_info \
     "${_msg[*]}"
@@ -279,9 +280,14 @@ _gitlab_repos_get() {
   if [[ -e "${_repos_file}" ]]; then
     _repos_array+=( $(
       cat \
-        "${_repos_file}")
+        "${_repos_file}" |
+        sort \
+          -V)
     )
   fi
+  _array_set \
+    "_repos_array" \
+    "_repos"
   _msg=(
     "Found '${#_repos[@]}'"
     "Ur applications"
@@ -651,7 +657,9 @@ _github_repo_new() {
     _namespace="${1}" \
     _repo="${2}" \
     _gh_opts=() \
-    _user_missing_error=()
+    _user_missing_error=() \
+    _repo_url
+  _repo_url="https://github.com/${_namespace}/${_repo}"
   _repo_new_failed=""
   _user_missing_error+=(
     "HTTP 404: Not Found"
@@ -678,9 +686,25 @@ _github_repo_new() {
       "${_msg[*]}" \
       0
     _repo_new_failed="true"
-  elif [[ "${_create}" != "${_user_missing_error[*]}" ]]; then
+  elif [[ "${_create}" == "${_repo_url}" ]]; then
+    _msg=(
+      "Repository '${_repo}' successfully"
+      "created on namespace '${_namespace}'"
+      "on Github.com."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ "${_create}" != "${_user_missing_error[*]}" && \
+          "${_create}" != "${_repo_url}" ]]; then
     echo \
       "${_create}"
+    _msg=(
+      "Uknown error creating Github"
+      "repository."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
   elif [[ "${_create}" == "" ]]; then
     _msg=(
       "Repository '${_repo}' successfully"
@@ -1132,7 +1156,7 @@ _github_repo_exists() {
     )
     _msg_info \
       "${_msg[*]}"
-    _exists=""
+    _exists="false"
   elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
     _exists="$(
       gh \
@@ -1140,6 +1164,17 @@ _github_repo_exists() {
           view \
             "${_namespace}/${_repo}" 2>"/dev/null" || \
       true)" 
+  else
+    echo \
+      "${_switch}"
+    _msg=(
+      "Unknown error while"
+      "switching account."
+    )
+    _exists=""
+    _msg_error \
+      "${_msg[*]}" \
+      0
   fi
 }
 
@@ -1171,7 +1206,7 @@ _repo_exists() {
   if [[ "${_checked}" == "true" ]]; then
     _msg=(
       "Repository"
-      "'${_target_namespace}/${_repo}'"
+      "'${_namespace}/${_repo}'"
       "already exists on '${_service}'."
     )
     _msg_info \
@@ -1179,8 +1214,8 @@ _repo_exists() {
     _exists="true"
   elif [[ "${_checked}" == "false" ]]; then
     _msg=(
-      "Creating"
-      "'${_target_namespace}/${_repo}'"
+      "Checking existence of"
+      "'${_namespace}/${_repo}'"
       "on '${_service}'."
     )
     _msg_info \
@@ -1230,7 +1265,13 @@ _repo_check() {
       "${_namespace}" \
       "${_repo}" \
       "${_git_service}"
-  elif [[ "${_exists}" != "" ]]; then
+  elif [[ "${_exists}" == "false" ]]; then
+    _msg=(
+      "Skipping repository '${_namespace}'"
+      "on service '${_git_service}'."
+    )
+  elif [[ "${_exists}" != "" && \
+          "${_exists}" != "" ]]; then
     _msg=(
       "Repository '${_repo}'"
       "found on '${_namespace}' namespace"
@@ -1542,10 +1583,15 @@ _github_env_set() {
     _gh_opts=() \
     _env_set_msg \
     _msg=() \
+    _msg_no_repo=() \
     _msg_okay=()
+  _msg_no_repo+=(
+    "failed to fetch public key: HTTP 404: Not Found"
+    "(https://api.github.com/repos/${_target_namespace}/${_target_repo}/actions/secrets/public-key)"
+  )
   _msg_okay+=(
     "✓ Set Actions secret"
-    "GL_DL_PRIVATE_TOKEN for"
+    "${_key} for"
     "${_target_namespace}/${_target_repo}"
   )
   _gh_opts+=(
@@ -1565,7 +1611,8 @@ _github_env_set() {
         set \
           "${_key}" \
           --body \
-            "${_value}")"
+            "${_value}" \
+          2>&1)"
   if [[ "${_env_set_msg}" == "${_msg_okay[*]}" ]]; then
     _msg=(
       "Variable '${_key}' correcly set on"
@@ -1574,17 +1621,42 @@ _github_env_set() {
     )
     _msg_info \
       "${_msg[*]}"
-  else
-    echo \
-      "${_env_set_msg}"
+  elif [[ "${_env_set_msg}" == "${_msg_no_repo[*]}" ]]; then
     _msg=(
-      "Error setting variable '${_key}'"
-      "on Github.com repository '${_target_repo}'"
-      "on namespace '${_namespace}'."
+      "Variable '${_key}' can't be set on"
+      "the 'Github' repository '${_target_repo}'"
+      "on namespace '${_namespace}' because"
+      "the repo doesn't exist."
     )
     _msg_error \
       "${_msg[*]}" \
-      1
+      0
+  else
+    if [[ "${_env_set_msg}" == "" ]]; then
+      _msg=(
+        "No output for set message"
+      )
+      _msg_info \
+        "${_msg[*]}"
+      gh \
+        secret \
+          "${_gh_opts[@]}" \
+          set \
+            "${_key}" \
+            --body \
+              "${_value}"
+    else
+      echo \
+        "${_env_set_msg}"
+      _msg=(
+        "Error setting variable '${_key}'"
+        "on Github.com repository '${_target_repo}'"
+        "on namespace '${_namespace}'."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
   fi
 }
 
@@ -2222,7 +2294,8 @@ _gur_get() {
   fi
   if [[ "${_target_key}" == "repos" ]]; then
     _repos_get \
-      "${_target_namespace}"
+      "${_target_namespace}" \
+      "${_git_services[0]}"
     echo \
       "${_repos[@]}"
   elif [[ "${_target_value}" == "" ]]; then
