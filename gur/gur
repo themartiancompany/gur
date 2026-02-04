@@ -2498,8 +2498,6 @@ _github_log_get() {
       "${_gh_base_opts[@]}"
       --job
         "${_job}"
-      --json
-        "jobs"
       --jq
         "${_jq_filter[*]}"
       #   ".jobs.[].name | select()"
@@ -2511,10 +2509,22 @@ _github_log_get() {
     )
     _msg_info \
       "${_msg[*]}"
+    _log_id="$(
+      gh \
+        run \
+          view \
+          "${_gh_opts[@]}")"
+    echo "${_log_id}"
+    _gh_opts=(
+      "${_gh_base_opts[@]}"
+      --job
+        "${_log_id}"
+    )
     gh \
       run \
         view \
         "${_gh_opts[@]}"
+    # --log
     # gh \
     #   run \
     #     view \
@@ -3606,6 +3616,17 @@ _repo_info_log_cmd_auto_detect() {
       target_value="${_repo_name}"
       _repo_type_get \
         "${PWD}"
+      if [[ "${_repo_type}" == "source" ]]; then
+        _msg=(
+          "Logs can be retrieved only for"
+          "repositories of type 'ur' (universal"
+          "recipe)."
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          0
+        _display_help="true"
+      fi
     fi
   fi
 }
@@ -3643,6 +3664,8 @@ _repo_info_auto_detect() {
 }
 
 _set_overrides() {
+  local \
+    _display_help
   git_services_amount="${#git_services[@]}"
   target_namespaces_amount="${#target_namespaces[@]}"
   if [[ -v override_quiet ]]; then
@@ -3668,6 +3691,10 @@ _set_overrides() {
   _cache_dir_auto_detect
   target_namespaces_amount="${#target_namespaces[@]}"
   _repo_info_auto_detect
+  if [[ "${_display_help}" == "true" ]]; then
+    _usage \
+      1
+  fi
 }
 
 
@@ -3734,7 +3761,7 @@ Usage:
                             Default: ${git_services[*]}
      -N <namespace>         Target namespace for the Ur
                             repositories.
-                            Default: ${target_namespace}
+                            Default: ${target_namespaces[*]}
      -t <repo-type>         Build and sync option.
                             It can be 'ur' (universal recipe)
                             or 'source' (the Git source repository
