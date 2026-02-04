@@ -100,6 +100,9 @@ _requirements() {
   _check_cmd \
     'jq'
   _check_cmd \
+    "recipe-get" \
+    "reallymakepkg"
+  _check_cmd \
     "sort" \
     "coreutils"
   _check_cmd \
@@ -2174,6 +2177,364 @@ _gitlab_log_get() {
     "${_job_latest}"
 }
 
+_tag_recipe_get() {
+  local \
+    _msg=() \
+    _pkgbuild
+  _pkgbuild="${PWD}/PKGBUILD"
+  _tag_recipe="$(
+    echo \
+      "$(recipe-get \
+          "${_pkgbuild}" \
+          "pkgver")-$(
+      recipe-get \
+        "${_pkgbuild}" \
+        "pkgrel")" || \
+    true)"
+  if [[ "${_tag_recipe}" == "" ]]; then
+    _msg=(
+      "Error reading the git repo"
+      "tag from the PKGBUILD"
+      "at '${_pkgbuild}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_github_log_id_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _latest \
+    _log_type \
+    _gh_opts=() \
+    _msg=() \
+    _nargs \
+    _tag_recipe \
+    _run_id
+  _nargs="${#}"
+  _latest="true"
+  # _log_type="release-build"
+  _log_type="ci"
+  if (( 2 < "${_nargs}" )); then
+    _latest="${3}"
+  fi
+  if (( 3 < "${_nargs}")); then
+    _log_type="${4}"
+  fi
+  if [[ "${_latest}" == "true" ]]; then
+    _gh_opts+=(
+      --repo
+        "${_namespace}/${_repo}"
+    )
+  fi
+  _tag_recipe_get
+  _gh_opts+=(
+    --branch
+      "${_tag_recipe}"
+    --json
+      "databaseId"
+    --jq
+      ".[].databaseId"
+  )
+  _msg=(
+    "Running gh with options"
+    "${_gh_opts[@]}."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _log_id="$(
+    gh \
+      run \
+        list \
+        "${_gh_opts[@]}" || \
+    true)"
+  if [[ "${_log_id}" == "" ]]; then
+    _msg=(
+      "Error retrieving log."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_github_log_type_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _log_id="${3}" \
+    _gh_opts=() \
+    _run_id \
+    _log_types=() \
+    _msg=() \
+    _type \
+    _workflow_name
+  _log_types+=(
+    "ci"
+    "release-build"
+  )
+  _gh_opts+=(
+    --repo
+      "${_namespace}/${_repo}"
+  )
+  _gh_opts+=(
+    --json
+      "workflowName"
+    --jq
+      ".workflowName"
+    "${_log_id}"
+  )
+  _msg=(
+    "Running gh with options"
+    "${_gh_opts[@]}."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _workflow_name="$(
+    gh \
+      run \
+        view \
+        "${_gh_opts[@]}")"
+  _type_known="false"
+  for _type in "${_log_types[@]}"; do
+    if [[ "${_workflow_name}" == "${_type}" ]]; then
+      _type_known="true"
+      _log_type="${_workflow_name}"
+      break
+    fi
+  done
+  if [[ "${_type_known}" == "false" ]]; then
+    _msg=(
+      "Unkwnown type '${_workflow_name}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_github_build_task_name_get() {
+  local \
+    _platform \
+    _arch \
+    _nargs
+  _nargs="${#}"
+  _platform=""
+  if (( 2 < "${_nargs}" )); then
+    _platform="${3}"
+  fi
+  _arch=""
+  if (( 3 < "${_nargs}" )); then
+    _arch="${4}"
+  fi
+  if [[ "${_platform}" == "" ]]; then
+    _platform="$(
+      uname \
+        -o)"
+  fi
+  if [[ "${_arch}" == "" ]]; then
+    _arch="$(
+      uname \
+        -m)"
+  fi
+  if [[ "${_platform}" == "GNU/Linux" ]]; then
+    _task_name=(
+      "Life and DogeOS GNU"
+      "Base package build"
+      "(Arch CI). (ubuntu-24.04,"
+      "gnu, arch, ${_arch}, amd64)"
+    )
+  elif [[ "${_platform}" == "Windows" ]]; then
+    _task_name=(
+      "Life and DogeOS"
+      "Windows base packages (CI)."
+      "(mingw64, x86_64, x86_64)"
+    )
+  elif [[ "${_platform}" == "Android" ]]; then
+    _task_name=(
+      "Life and DogeOS"
+      "Android Base package"
+      "build (Termux CI)."
+      "(ubuntu-24.04, android,"
+      "termux, x86_64)"
+    )
+  fi
+}
+
+_github_jobs_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _log_id \
+    _job_type \
+    _gh_opts=() \
+    _msg=() \
+    _run_id
+  _job_type="ci"
+  if (( 2 < "${#}" )); then
+    _job_type="${3}"
+  fi
+  _gh_opts+=(
+    --repo
+      "${_namespace}/${_repo}"
+  )
+  _github_log_id_get \
+    "${_namespace}" \
+    "${_repo_name}"
+  _github_log_type_get \
+    "${_namespace}" \
+    "${_repo_name}" \
+    "${_log_id}"
+  if [[ "${_log_type}" != "${_job_type}" ]]; then
+    _msg=(
+      "Task with ID '${_log_id}' corresponds"
+      "corresponds to '${_job_type}' type."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _gh_opts+=(
+    --json
+      "jobs"
+    --jq
+      ".jobs.[].databaseId"
+    "${_log_id}"
+  )
+  _msg=(
+    "Running gh with options"
+    "${_gh_opts[@]}."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _jobs=(
+    $(gh \
+        run \
+          view \
+          "${_gh_opts[@]}")
+  )
+  if (( "${#_jobs}" < 1 )); then
+    _msg=(
+      "No builds found for package"
+      "'${_repo}' on namespace"
+      "'${_namespace}' on github."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
+_github_log_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _platform \
+    _arch \
+    _gh_base_opts=() \
+    _gh_opts=() \
+    _jobs=() \
+    _jq_filter=() \
+    _log_id \
+    _nargs \
+    _os \
+    _tag_recipe \
+    _run_id \
+    _repo_name \
+    _task_name=() \
+    _msg=()
+  _nargs="${#}"
+  _platform=""
+  if (( 2 < "${_nargs}" )); then
+    _platform="${3}"
+  fi
+  _arch=""
+  if (( 3 < "${_nargs}" )); then
+    _arch="${4}"
+  fi
+  if [[ "${_platform}" == "" ]]; then
+    _platform="$(
+      uname \
+        -o)"
+  fi
+  if [[ "${_arch}" == "" ]]; then
+    _arch="$(
+      uname \
+        -m)"
+  fi
+  _gh_base_opts+=(
+    # --log
+    --json
+      "jobs"
+  )
+  _repo_name="${_repo}-ur"
+  _gh_base_opts+=(
+    --repo
+      "${_namespace}/${_repo_name}"
+  )
+  _msg=(
+    "Getting logs for"
+    "project '${_repo_name}'"
+    "on github.com"
+    "namespace '${_namespace}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _github_jobs_get \
+    "${_namespace}" \
+    "${_repo_name}"
+  for _job in "${_jobs[@]}"; do
+    _github_build_task_name_get
+    _jq_filter=(
+      ".jobs.[] |"
+        "select("
+          '.name == "'${_task_name[*]}'" ) |'
+        ".databaseId"
+    )
+    _gh_opts=(
+      "${_gh_base_opts[@]}"
+      --job
+        "${_job}"
+      --json
+        "jobs"
+      --jq
+        "${_jq_filter[*]}"
+      #   ".jobs.[].name | select()"
+    )
+    _msg=(
+      "Running gh with options"
+      "'${_gh_opts[*]}' and"
+      "jq with filter '${_jq_filter[*]}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    gh \
+      run \
+        view \
+        "${_gh_opts[@]}"
+    # gh \
+    #   run \
+    #     view \
+    #     "${_gh_opts[@]}" |
+    #   jq \
+    #     "${_jq_filter[*]}"
+    # _job_names=(
+    #   $(gh \
+    #       run \
+    #         view \
+    #         "${_gh_opts[@]}" |
+    #       jq \
+    #         ".jobs.[].name")
+    # )
+    # for _job_name in "${_job_names[@]}"; do
+    #   echo "name '${_job_name}'."
+    # done
+  done
+}
+
 _log_check() {
   true
 }
@@ -2316,8 +2677,27 @@ _gur_get() {
         "${_service}"
     done
   fi
+  if [[ "${_target_key}" == "log" ]]; then
+    _namespace_user="${_target_namespace}"
+    _namespace_target="${_target_value}"
+    if (( 1 < "${#_git_services[@]}" )); then
+      _msg=(
+        "Showing log for more than"
+        "a build service."
+      )
+      _msg_warning \
+        "${_msg[*]}"
+    fi
+    for _service in "${_git_services[@]}"; do
+      _log_get \
+        "${_target_namespace}" \
+        "${_target_value}" \
+        "${_service}"
+    done
+  fi
   if [[ "${_target_key}" != "repos" && \
-        "${_target_key}" != "quota" ]]; then
+        "${_target_key}" != "quota" && \
+        "${_target_key}" != "log" ]]; then
     if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
       _target_field="${_target_key}"
       _target_repo="${_target_value}"
@@ -2579,6 +2959,7 @@ _gur_build() {
     _target_value="${4}" \
     _cache_dir="${5}" \
     _pkgbuild \
+    _tag_recipe \
     _tag \
     _committed \
     _tag_exists \
@@ -2598,13 +2979,8 @@ _gur_build() {
   # check if unstaged changes
   # if not commit
   # check if commit is tagged
-  _tag="$(
-    recipe-get \
-      "${_pkgbuild}" \
-      "pkgver")-$(
-    recipe-get \
-      "${_pkgbuild}" \
-      "pkgrel")"
+  _tag_recipe_get
+  _tag="${_tag_recipe}"
   _committed="$(
     git \
       commit \
