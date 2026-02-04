@@ -2428,6 +2428,25 @@ _github_jobs_get() {
   fi
 }
 
+_github_job_latest_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _jobs=()
+  _github_jobs_get \
+    "${_namespace}" \
+    "${_repo_name}"
+  _job_latest="$(
+    printf \
+      "%s\n" \
+      "${_jobs[@]}" |
+      sort \
+        -n |
+        tail \
+          -n \
+            1)"
+}
+
 _github_log_get() {
   local \
     _namespace="${1}" \
@@ -2436,7 +2455,8 @@ _github_log_get() {
     _arch \
     _gh_base_opts=() \
     _gh_opts=() \
-    _jobs=() \
+    _job_latest \
+    _jobs_selected=() \
     _jq_filter=() \
     _log_id \
     _nargs \
@@ -2465,11 +2485,6 @@ _github_log_get() {
       uname \
         -m)"
   fi
-  _gh_base_opts+=(
-    # --log
-    --json
-      "jobs"
-  )
   _repo_name="${_repo}-ur"
   _gh_base_opts+=(
     --repo
@@ -2483,10 +2498,13 @@ _github_log_get() {
   )
   _msg_info \
     "${_msg[*]}"
-  _github_jobs_get \
+  _github_job_latest_get \
     "${_namespace}" \
     "${_repo_name}"
-  for _job in "${_jobs[@]}"; do
+  _jobs_selected=(
+    "${_job_latest}"
+  )
+  for _job in "${_jobs_selected[@]}"; do
     _github_build_task_name_get
     _jq_filter=(
       ".jobs.[] |"
@@ -2496,11 +2514,12 @@ _github_log_get() {
     )
     _gh_opts=(
       "${_gh_base_opts[@]}"
+      --json
+        "jobs"
       --job
         "${_job}"
       --jq
         "${_jq_filter[*]}"
-      #   ".jobs.[].name | select()"
     )
     _msg=(
       "Running gh with options"
@@ -2514,9 +2533,9 @@ _github_log_get() {
         run \
           view \
           "${_gh_opts[@]}")"
-    echo "${_log_id}"
     _gh_opts=(
       "${_gh_base_opts[@]}"
+      --log
       --job
         "${_log_id}"
     )
@@ -2524,24 +2543,6 @@ _github_log_get() {
       run \
         view \
         "${_gh_opts[@]}"
-    # --log
-    # gh \
-    #   run \
-    #     view \
-    #     "${_gh_opts[@]}" |
-    #   jq \
-    #     "${_jq_filter[*]}"
-    # _job_names=(
-    #   $(gh \
-    #       run \
-    #         view \
-    #         "${_gh_opts[@]}" |
-    #       jq \
-    #         ".jobs.[].name")
-    # )
-    # for _job_name in "${_job_names[@]}"; do
-    #   echo "name '${_job_name}'."
-    # done
   done
 }
 
@@ -3666,6 +3667,7 @@ _repo_info_auto_detect() {
 _set_overrides() {
   local \
     _display_help
+  _display_help="false"
   git_services_amount="${#git_services[@]}"
   target_namespaces_amount="${#target_namespaces[@]}"
   if [[ -v override_quiet ]]; then
