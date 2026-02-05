@@ -2451,6 +2451,7 @@ _github_log_get() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
+    _watch \
     _platform \
     _arch \
     _gh_base_opts=() \
@@ -2463,17 +2464,22 @@ _github_log_get() {
     _os \
     _tag_recipe \
     _run_id \
+    _run_cmd=() \
     _repo_name \
     _task_name=() \
     _msg=()
   _nargs="${#}"
+  _arch=""
   _platform=""
+  _watch=""
   if (( 2 < "${_nargs}" )); then
     _platform="${3}"
   fi
-  _arch=""
   if (( 3 < "${_nargs}" )); then
     _arch="${4}"
+  fi
+  if (( 4 < "${_nargs}" )); then
+    _watch="${5}"
   fi
   if [[ "${_platform}" == "" ]]; then
     _platform="$(
@@ -2484,6 +2490,9 @@ _github_log_get() {
     _arch="$(
       uname \
         -m)"
+  fi
+  if [[ "${_watch}" == "" ]]; then
+    _watch="n"
   fi
   _repo_name="${_repo}-ur"
   _gh_base_opts+=(
@@ -2535,13 +2544,28 @@ _github_log_get() {
           "${_gh_opts[@]}")"
     _gh_opts=(
       "${_gh_base_opts[@]}"
-      --log
-      --job
-        "${_log_id}"
     )
+    if [[ "${_watch}" == "n" ]]; then
+      _run_cmd+=(
+        view
+      )
+      _gh_opts+=(
+        --log
+        --job
+          "${_log_id}"
+      )
+    elif [[ "${_watch}" == "y" ]]; then
+      _github_log_id_get \
+        "${_namespace}" \
+        "${_repo_name}"
+      _run_cmd+=(
+        watch
+          "${_log_id}"
+      )
+    fi
     gh \
       run \
-        view \
+        "${_run_cmd[@]}" \
         "${_gh_opts[@]}"
   done
 }
@@ -2982,7 +3006,7 @@ _gur_build() {
     "${_target_namespace}" \
     "${_target_repo}" \
     "${_git_service}"
-  _remote="${_target_namespace}-gitlab"
+  _remote="${_target_namespace}-${_git_service}"
   _pkgbuild="${PWD}/PKGBUILD"
   # TODO:
   # check if repository ci
@@ -3210,14 +3234,14 @@ _gur() {
         "${_cache_dir}"
       done
   elif [[ "${_target_command}" == "build" ]]; then
-    if [[ " ${git_services[@]} " == *" gitlab "* ]]; then
+    for _service in "${_git_services[@]}"; do
       _gur_build \
-        "gitlab" \
+        "${_service}" \
         "${_target_namespace}" \
         "${_repo_name}" \
         "${_target_value}" \
         "${_cache_dir}"
-      fi
+    done
   elif [[ "${_target_command}" == "sync" ]]; then
     # TODO:
     _gur_sync \
