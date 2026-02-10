@@ -132,7 +132,77 @@ _repos_get() {
     "${_namespace}"
 }
 
-_github_repos_get() {
+_github_gh_repos_get() {
+  local \
+    _namespace="${1}" \
+    _gh_opts=() \
+    _repos_names=() \
+    _repos_array=() \
+    _limit \
+    _msg=() \
+    _switch
+  _switch="$(
+    gh \
+      auth \
+        switch \
+        -u \
+          "${_namespace}" || \
+      true)"
+  _limit="314000000000"
+  _gh_opts+=(
+    --json
+      "name"
+    --limit
+      "${_limit}"
+    --jq
+      ".[].name"
+  )
+  gh \
+    repo \
+    list \
+    "${_namespace}" \
+    "${_gh_opts[@]}"
+  _repos_names+=( $(
+    gh \
+      repo \
+      list \
+      "${_namespace}" \
+      "${_gh_opts[@]}"
+  )
+  for _repo in "${_repos_names[@]}"; do
+    if [[ "${_repo}" == *"-ur" ]]; then
+      _repos_array+=(
+        "${_repo%-ur}"
+      )
+    fi
+  done
+  # if [[ -e "${_repos_file}" ]]; then
+  #   _repos_array+=( $(
+  #     cat \
+  #       "${_repos_file}")
+  #   )
+  # fi
+  _msg=(
+    "Found '${#_repos_array[@]}'"
+    "Ur applications"
+    "HTTP mirrors."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _array_set \
+    "_repos_array" \
+    "_repos"
+  mkdir \
+    -p \
+    "${_repos_dir}"
+  printf \
+    '%s\n' \
+    "${_repos[@]}" > \
+    "${_repos_file}" || \
+    true
+}
+
+_github_py_repos_get() {
   local \
     _namespace="${1}" \
     _url \
@@ -216,6 +286,24 @@ _github_repos_get() {
     "${_repos[@]}" > \
     "${_repos_file}" || \
     true
+}
+
+
+# List namespace repositories
+# on Github
+# $1: target namespace
+# $2: retrieval mode, it can be
+#     'gh' or 'py'
+_github_repos_get() {
+  local \
+    _namespace="${1}" \
+    _mode
+  _mode="gh"
+  if (( 1 < "${#}" )); then
+    _mode="${2}"
+  fi
+  "_github_${_mode}_repos_get" \
+    "${_namespace}"
 }
 
 _gitlab_repos_get() {
@@ -1981,6 +2069,69 @@ _gitlab_pipelines_get() {
     "${_cache_dir}/jobs.json"
 }
 
+_github_releases_get() {
+  local \
+    _repo="${1}" \
+    _namespace="${2}" \
+    _releases=()
+  _msg=(
+    "Checking existence of"
+    "repository '${_repo}'"
+    "on namespace '${_namespace}'"
+    "on Github.com"
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _switch_error=(
+    "no accounts matched that criteria"
+  )
+  _switch="$(
+    gh \
+      auth \
+        switch \
+        -u \
+          "${_namespace}" \
+        2>&1)"
+  if [[ "${_switch}" == "${_switch_error[*]}" ]]; then
+    _msg=(
+      "No '${_namespace}' account"
+      "configured for Github.com."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    # _releases="false"
+  elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
+    gh \
+
+    # _exists="$(
+    #   gh \
+    #     repo \
+    #       view \
+    #         "${_namespace}/${_repo}" 2>"/dev/null" || \
+    #   true)" 
+  else
+    echo \
+      "${_switch}"
+    _msg=(
+      "Unknown error while"
+      "switching account."
+    )
+    _exists=""
+    _msg_error \
+      "${_msg[*]}" \
+      0
+  fi
+}
+
+_github_releases_get() {
+  local \
+    _repo="${1}" \
+    _namespace="${2}"
+  echo \
+    "stub"
+}
+
+
 _gitlab_releases_get() {
   cat \
     "${_cache_dir}/releases.json" |
@@ -2249,7 +2400,10 @@ _github_log_id_get() {
     gh \
       run \
         list \
-        "${_gh_opts[@]}" || \
+        "${_gh_opts[@]}" |
+      tail \
+       -n \
+         1 || \
     true)"
   if [[ "${_log_id}" == "" ]]; then
     _msg=(
