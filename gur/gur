@@ -227,6 +227,13 @@ _github_gh_repos_get() {
   _array_set \
     "_repos_array" \
     "_repos"
+  _repos=( $(
+    printf \
+      '%s\n' \
+      "${_repos[@]}" |
+      sort \
+        -V)
+  )
   mkdir \
     -p \
     "${_repos_dir}"
