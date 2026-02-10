@@ -137,12 +137,14 @@ _github_gh_repos_get() {
     _namespace="${1}" \
     _gh_opts=() \
     _repos_dir \
+    _repos_file \
     _repos_names=() \
     _repos_array=() \
     _limit \
     _msg=() \
     _switch
   _repos_dir="${_cache_dir}/${_namespace}/github"
+  _repos_file="${_repos_dir}/repos.db"
   _switch="$(
     gh \
       auth \
