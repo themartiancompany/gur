@@ -167,7 +167,7 @@ _github_gh_repos_get() {
       repo \
       list \
       "${_namespace}" \
-      "${_gh_opts[@]}"
+      "${_gh_opts[@]}")
   )
   for _repo in "${_repos_names[@]}"; do
     if [[ "${_repo}" == *"-ur" ]]; then
