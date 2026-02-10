@@ -24,8 +24,8 @@
 _bin="$(
   dirname \
     "$(command \
-        -v \
-	  "env")")"
+         -v \
+         "env")")"
 _lib="$(realpath \
     "${_bin}/../lib")"
 _crash_bash="${_lib}/libcrash-bash/crash-bash"
@@ -605,10 +605,19 @@ _github_description_check() {
   fi
 }
 
+_homepage_get() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}"
+  _github_homepage_get \
+    "${_target_namespace}" \
+    "${_target_repo}"
+}
+
 _homepage_check() {
   local \
     _target_namespace="${1}" \
-    _target_repo="${2}" \
+    _target_repo="${2}"
   _github_homepage_check \
     "${_target_namespace}" \
     "${_target_repo}"
@@ -641,7 +650,7 @@ _github_homepage_check() {
 _topics_check() {
   local \
     _target_namespace="${1}" \
-    _target_repo="${2}" \
+    _target_repo="${2}"
   _github_topics_check \
     "${_target_namespace}" \
     "${_target_repo}"
