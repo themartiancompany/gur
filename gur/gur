@@ -951,6 +951,10 @@ _namespace_id_get() {
         '.[] | select(.path=="'${_namespace}'") | .id')"
 }
 
+_namespace_id_check() {
+  true
+}
+
 _gitlab_repo_new() {
   local \
     _namespace="${1}" \
@@ -1036,9 +1040,18 @@ _quota_check() {
   if (( 2 < "${#}" )); then
     _git_service="${3}"
   fi
-  "_${_git_service}_check" \
-    "${_namespace_user}" \
-    "${_namespace_target}"
+  if [[ "${_git_service}" == "gitlab" ]]; then
+    "_${_git_service}_check" \
+      "${_namespace_user}" \
+      "${_namespace_target}"
+  elif [[ "${_git_service}" == "github" ]]; then
+    _msg=(
+      "Github has had no visible quotas"
+      "up so far."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
 }
 
 _quota_query() {
@@ -1469,6 +1482,14 @@ _ci_check() {
       "${_target_namespace}" \
       "${_target_repo}"
   done
+}
+
+_secrets_check() {
+  true
+}
+
+_env_check() {
+  true
 }
 
 _github_ci_check() {
