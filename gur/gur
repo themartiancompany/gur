@@ -533,6 +533,13 @@ _github_description_set() {
     _target_namespace="${1}" \
     _target_repo="${2}" \
     _description="${3}"
+  _msg=(
+    "Setting description for"
+    "'${_target_namespace}/${_target_repo}'"
+    "on Github."
+  )
+  _msg_info \
+    "${_msg[@]}"
   gh \
     repo \
     edit \
@@ -693,7 +700,7 @@ _github_topics_check() {
         "${_msg[*]}"
       _github_topic_set \
         "${_target_namespace}" \
-        "${_repo}" \
+        "${_repo}-ur" \
         "${_topic}"
     fi
   done
