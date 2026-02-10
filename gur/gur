@@ -135,23 +135,31 @@ _repos_get() {
 _github_gh_repos_get() {
   local \
     _namespace="${1}" \
+    _namespace_active \
     _gh_opts=() \
     _repos_dir \
     _repos_file \
     _repos_names=() \
+    _repos_names_private=() \
     _repos_array=() \
     _limit \
     _msg=() \
     _switch
   _repos_dir="${_cache_dir}/${_namespace}/github"
   _repos_file="${_repos_dir}/repos.db"
+  _namespace_active="$(
+    _github_account_active_get)"
   _switch="$(
     gh \
       auth \
         switch \
         -u \
           "${_namespace}" || \
-      true)"
+    gh \
+      auth \
+        switch \
+        -u \
+          "${_namespace_active}")"
   _limit="314000000000"
   _gh_opts+=(
     --json
@@ -161,6 +169,27 @@ _github_gh_repos_get() {
     --jq
       ".[].name"
   )
+  _gh_private_opts+=(
+    --json
+      "name"
+    --limit
+      "${_limit}"
+    --json
+      "name"
+    --visibility
+      "private"
+    --json
+      "isPrivate"
+    --jq
+      ".[]"
+  )
+  _repos_names_private+=( $(
+    gh \
+      repo \
+      list \
+      "${_namespace}" \
+      "${_gh_private_opts[@]}")
+  )
   _repos_names+=( $(
     gh \
       repo \
@@ -169,6 +198,13 @@ _github_gh_repos_get() {
       "${_gh_opts[@]}")
   )
   for _repo in "${_repos_names[@]}"; do
+    if [[ "${_repo}" == *"-ur" ]]; then
+      _repos_array+=(
+        "${_repo%-ur}"
+      )
+    fi
+  done
+  for _repo in "${_repos_names_private[@]}"; do
     if [[ "${_repo}" == *"-ur" ]]; then
       _repos_array+=(
         "${_repo%-ur}"
@@ -538,7 +574,7 @@ _project_id_check() {
 _description_check() {
   local \
     _target_namespace="${1}" \
-    _target_repo="${2}" \
+    _target_repo="${2}"
   _github_description_check \
     "${_target_namespace}" \
     "${_target_repo}"
@@ -1218,6 +1254,7 @@ _gitlab_quota_get() {
 _github_repo_exists() {
   local \
     _namespace="${1}" \
+    _namespace_active \
     _repo="${2}" \
     _switch_error=() \
     _msg=()
@@ -1232,13 +1269,19 @@ _github_repo_exists() {
   _switch_error=(
     "no accounts matched that criteria"
   )
+  _namespace_active="$(
+    _github_account_active_get)"
   _switch="$(
     gh \
       auth \
         switch \
         -u \
-          "${_namespace}" \
-        2>&1)"
+          "${_namespace}" || \
+    gh \
+      auth \
+        switch \
+        -u \
+          "${_namespace_active}")"
   if [[ "${_switch}" == "${_switch_error[*]}" ]]; then
     _msg=(
       "No '${_namespace}' account"
@@ -3281,10 +3324,10 @@ _gur_check() {
       "${_msg[*]}"
     for _repo in "${_repos[@]}"; do
       _checked="$(
-        cat \
-          "${_cache_dir}/checked.db" |
-          grep \
-            "${_repo}" || \
+        ( cat \
+            "${_cache_dir}/checked.db" |
+            grep \
+              "${_repo}" ) || \
           true)"
       if [[ "${_checked}" == "" ]]; then
         _msg=(
