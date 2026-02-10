@@ -41,6 +41,7 @@ _global_variables() {
   git_services=()
   git_services_amount=""
   target_namespaces=()
+  namespace_main=""
   target_command=""
   target_key=""
   target_value=""
@@ -3422,12 +3423,13 @@ _gur() {
   local \
     _git_services_amount="${1}" \
     _target_namespaces_amount="${2}" \
-    _cache_dir="${3}" \
-    _repo_type="${4}" \
-    _repo_name="${5}" \
-    _target_command="${6}" \
-    _target_key="${7}" \
-    _target_value="${8}" \
+    _namespace_main="${3}" \
+    _cache_dir="${4}" \
+    _repo_type="${5}" \
+    _repo_name="${6}" \
+    _target_command="${7}" \
+    _target_key="${8}" \
+    _target_value="${9}" \
     _git_services=() \
     _target_namespaces=() \
     _repos=() \
@@ -3435,7 +3437,7 @@ _gur() {
     _msg=() \
     _service
   shift \
-    8
+    9
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -3951,6 +3953,10 @@ _set_overrides() {
   _git_services_auto_detect
   _target_namespaces_auto_detect
   _set_override \
+    "namespace" \
+    "main" \
+    "themartiancompany"
+  _set_override \
     "wallet" \
     "name" \
     "${target_namespaces[0]}"
@@ -4028,6 +4034,8 @@ Usage:
      -N <namespace>         Target namespace for the Ur
                             repositories.
                             Default: ${target_namespaces[*]}
+     -M <namespace-main>    Main namespace 
+                            TDefault: ${namespace_main}
      -t <repo-type>         Build and sync option.
                             It can be 'ur' (universal recipe)
                             or 'source' (the Git source repository
@@ -4066,14 +4074,16 @@ _show_config() {
   _msg_info "${app_name} configuration"
   _msg_info "                       Run date:   ${run_date}"
   _msg_info "                   Project name:   ${repo_name}"
-  _msg_info "                   Git services:   ${git_services[*]}"
+  _msg_info "                 Main namespace:   ${namespace_main}"
   _msg_info "              Target namespaces:   ${target_namespaces[*]}"
+  _msg_info "                   Git services:   ${git_services[*]}"
   _msg_info "                Repository type:   ${repo_type}"
-  _msg_info "                Cache directory:   ${cache_dir}"
   _msg_info "                 Target command:   ${target_command}"
   _msg_info "                     Target key:   ${target_key}"
   _msg_info "                   Target value:   ${target_value}"
   _msg_info "                Extra arguments:   ${command_args[*]}"
+  _msg_info "          Application options:"
+  _msg_info "                Cache directory:   ${cache_dir}"
 }
 _globals
 _global_variables
@@ -4083,7 +4093,7 @@ _config_user_init \
 # shellcheck disable=SC2034
 while \
   getopts \
-    'm:N:t:W:cvh?' \
+    'm:N:M:t:W:cvh?' \
     arg; do
   case \
     "${arg}" in
@@ -4095,6 +4105,8 @@ while \
       target_namespaces+=(
         "${OPTARG}"
       ) ;;
+    N)
+      override_namespace_main="${OPTARG}" ;;
     t)
       override_repo_type="${OPTARG}" ;;
     W)
@@ -4153,6 +4165,7 @@ _show_config
 app_opts=(
   "${git_services_amount}"
   "${target_namespaces_amount}"
+  "${namespace_main}"
   "${cache_dir}"
   "${repo_type}"
   "${repo_name}"
