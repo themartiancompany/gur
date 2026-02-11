@@ -60,6 +60,7 @@ _global_variables() {
     "ur-app-store"
     "universal-recipe"
     "user-repo"
+    "dogeos"
     "dogeos-package"
     "life-package"
   )
@@ -807,6 +808,8 @@ _github_repo_new() {
     _namespace="${1}" \
     _repo="${2}" \
     _gh_opts=() \
+    _msg=() \
+    _exists \
     _user_missing_error=() \
     _repo_url
   _repo_url="https://github.com/${_namespace}/${_repo}"
@@ -819,6 +822,36 @@ _github_repo_new() {
     --private
     "${_namespace}/${_repo}"
   )
+  "_${_service}_repo_exists" \
+    "${_namespace_main}" \
+    "${_repo}"
+  _checked_local \
+    "${_namespace_main}" \
+    "${_repo}" \
+    "${_service}" \
+    "exists"
+  if [[ "${_exists}" == "true" ]]; then
+    _msg=(
+      "Repository exists"
+      "on main namespace"
+      "'${_namespace}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ "${_exists}" == "false" ]]; then
+    _msg=(
+      "hurr"
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
+  # _create="$(
+  #   gh \
+  #     repo \
+  #       fork \
+  #       "${_gh_opts[@]}" \
+  #       2>&1 || \
+  #   true)"
   _create="$(
     gh \
       repo \
@@ -1461,15 +1494,34 @@ _exists_check() {
     _tmp_dir \
     _git_opts=() \
     _exists \
+    _create \
     _msg=()
+  _create="n"
   _git_service="gitlab"
   if (( 2 < "${#}" )); then
     _git_service="${3}"
+  fi
+  if (( 3 < "${#}" )); then
+    _create="${3}"
   fi
   "_${_git_service}_repo_exists" \
     "${_namespace}" \
     "${_repo}-ur" \
     "${_git_service}"
+  if [[ "${_create}" == "y" ]]; then
+    "_${_git_service}_repo_exists" \
+      "${_namespace_main}" \
+      "${_repo}-ur" \
+      "${_git_service}"
+    if [[ "${_exists}" == "true" ]]; then
+      _msg=(
+        "hi."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
+  fi
 }
 
 _ci_check() {
@@ -3330,7 +3382,9 @@ _gur_check() {
     _cache_dir="${5}" \
     _checked \
     _field \
+    _index \
     _repo \
+    _repos_amount \
     _msg=()
   if [[ "${_target_value}" != "" ]]; then
     _repo="${_target_value}"
@@ -3367,7 +3421,16 @@ _gur_check() {
     )
     _msg_info \
       "${_msg[*]}"
+    _index=0
+    _repos_amount="${#_repos[@]}"
     for _repo in "${_repos[@]}"; do
+      _index=$((
+        _index + 1))
+      _msg=(
+        "[${_index}/${_repos_amount}] Checking '${_repo}'."
+      )
+      _msg_info \
+        "${_msg[*]}"
       _checked="$(
         ( cat \
             "${_cache_dir}/checked.db" |
