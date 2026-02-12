@@ -560,7 +560,7 @@ _github_description_set() {
     "on Github."
   )
   _msg_info \
-    "${_msg[@]}"
+    "${_msg[*]}"
   gh \
     repo \
     edit \
