@@ -3434,6 +3434,7 @@ _gur_sync() {
     _remote \
     _repo_new_failed \
     _service \
+    _switch \
     _msg=()
   _namespaces=( $(
     _gur_namespaces_get)
@@ -3449,6 +3450,19 @@ _gur_sync() {
   fi
   for _namespace in "${target_namespaces[@]}"; do
     for _service in "${_git_services[@]}"; do
+      if [[ "${_service}" == "github" ]]; then
+        _switch="$(
+          gh \
+            auth \
+              switch \
+              -u \
+                "${_namespace}" || \
+          gh \
+            auth \
+              switch \
+              -u \
+                "${_namespace_active}")"
+      fi
       _repo_sync \
         "${_service}" \
         "${_namespace}" \
