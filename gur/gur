@@ -845,6 +845,8 @@ _bur_gpg_key_set() {
 _github_repo_create() {
   local \
     _fork="${1}" \
+    _create_individual \
+    _create_org \
     _visibility
   if [[ "${_fork}" == "y" ]]; then
     _visibility="$(
@@ -868,20 +870,36 @@ _github_repo_create() {
             2>&1 || \
         true)"
     elif [[ "${_visibility}" == "PUBLIC" ]]; then
-      _create="$(
+      _create_individual="$(
         gh \
           repo \
             fork \
             "${_namespace_main}/${_repo}" \
             2>&1 || \
-        gh \
-          repo \
-            fork \
-            --org \
-              "${_namespace}" \
-            "${_namespace_main}/${_repo}" \
-            2>&1 || \
-        true)"
+            true)"
+      if [[ "${_create_individual}" == "${_namespace_active}/${_repo} already exists" ]]; then
+        _create="$(
+          gh \
+            repo \
+              fork \
+              --org \
+                "${_namespace}" \
+              "${_namespace_main}/${_repo}" \
+              2>&1 || \
+          true)"
+      elif [[ "${_create_individual}" == "${_namespace_active}/${_repo}-"*" already exists" ]]; then
+        _create="$(
+          gh \
+            repo \
+              fork \
+              --org \
+                "${_namespace}" \
+              "${_namespace_main}/${_repo}" \
+              2>&1 || \
+          true)"
+      else
+        _create="${_create_individual}"
+      fi
     else
       _msg=(
         "Unknown visibility '${_visibility}'."
@@ -901,7 +919,6 @@ _github_repo_create() {
           "${_gh_opts[@]}" \
           2>&1 || \
       true)"
-
   fi
 }
 
@@ -913,9 +930,11 @@ _github_repo_new() {
     _fork \
     _create_action \
     _msg=() \
-    _exists \
+    _exists_old \
     _user_missing_error=() \
+    _repo_existing_error=() \
     _repo_url
+  _exists_old="${_exists}"
   _fork="y"
   if (( 2 < "${#}" )); then
     _fork="${3}"
@@ -925,6 +944,9 @@ _github_repo_new() {
   _user_missing_error+=(
     "HTTP 404: Not Found"
     "(https://api.github.com/users/${_namespace})"
+  )
+  _repo_existing_error+=(
+    "${_namespace}/${_repo} already exists"
   )
   _gh_opts+=(
     "${_namespace}/${_repo}"
@@ -941,7 +963,7 @@ _github_repo_new() {
     _msg=(
       "Repository exists"
       "on main namespace"
-      "'${_namespace}'."
+      "'${_main_namespace}'."
     )
     _msg_error \
       "${_msg[*]}"
@@ -969,6 +991,14 @@ _github_repo_new() {
       "${_msg[*]}" \
       0
     _repo_new_failed="true"
+  elif [[ "${_create}" == "${_repo_existing_error[*]}" ]]; then
+    _msg=(
+      "Repository '${_repo}' already exists"
+      "on namespace '${_namespace}'"
+      "on Github.com."
+    )
+    _msg_info \
+      "${_msg[*]}"
   elif [[ "${_create}" == "${_repo_url}" ]]; then
     if [[ "${_fork}" != "y" ]]; then
       _create_action="created"
@@ -983,11 +1013,16 @@ _github_repo_new() {
     _msg_info \
       "${_msg[*]}"
   elif [[ "${_create}" != "${_user_missing_error[*]}" && \
-          "${_create}" != "${_repo_url}" ]]; then
+          "${_create}" != "${_repo_url}" && \
+          "${_create}" != "${_repo_existing_error[*]}" ]]; then
     echo \
       "${_create}"
+    echo \
+      "the filter error"
+    echo \
+      "${_repo_existing_error[*]}"
     _msg=(
-      "Uknown error creating Github"
+      "Uknown error while creating Github"
       "repository."
     )
     _msg_error \
@@ -1007,6 +1042,7 @@ _github_repo_new() {
     _msg_info \
       "${_msg[*]}"
   fi
+  _exists="${_exists_old}"
 }
 
 _namespaces_get() {
@@ -1486,6 +1522,19 @@ _github_repo_exists() {
     else
       echo "exists: ${_exists}"
     fi
+  elif [[ "${_switch}" == "" ]]; then
+    _exists="$(
+      gh \
+        repo \
+          view \
+            "${_namespace}/${_repo}" 2>"/dev/null" || \
+      true)" 
+      _msg=(
+        "Switch seemingly complete."
+        "Exists value: '${_exists}'."
+      )
+      _msg_info \
+        "${_msg[*]}"
   elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
     _exists="$(
       gh \
@@ -3523,6 +3572,12 @@ _gur_build() {
   else
     echo \
       "${_committed}"
+    _msg=(
+      "Different commit error message."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
   fi
   _tag_exists="$(
     git \
@@ -3860,8 +3915,8 @@ _github_accounts_get() {
 
 _github_account_active_get() {
   local \
-    _namespace
-  _namespace="$(
+    _namespace_active
+  _namespace_active="$(
     gh \
       auth \
       status \
@@ -3871,11 +3926,11 @@ _github_account_active_get() {
         --raw-output \
         '.hosts."github.com".[] | select(.active == true).login' || \
     true)"
-  if [[ "${_namespace}" == "null" ]]; then
-    _namespace=""
+  if [[ "${_namespace_active}" == "null" ]]; then
+    _namespace_active=""
   fi
   echo \
-    "${_namespace}"
+    "${_namespace_active}"
 }
 
 _github_namespaces_auto_detect() {
