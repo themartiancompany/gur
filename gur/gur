@@ -842,15 +842,71 @@ _bur_gpg_key_set() {
     "private"
 }
 
+_github_repo_create() {
+  local \
+    _fork="${1}" \
+    _visibility
+  if [[ "${_fork}" == "y" ]]; then
+    _visibility="$(
+      gh \
+        repo \
+          view \
+          "${_namespace_main}/${_repo}" \
+          --json \
+            "visibility" \
+          --jq \
+            ".visibility")"
+    if [[ "${_visibility}" == "PRIVATE" ]]; then
+      _create="$(
+        gh \
+          repo \
+            create \
+            "${_gh_opts[@]}" \
+            2>&1 || \
+        true)"
+    elif [[ "${_visibility}" == "PUBLIC" ]]; then
+      _create="$(
+        gh \
+          repo \
+            fork \
+            "${_gh_opts[@]}" \
+            2>&1 || \
+        true)"
+    else
+      _msg=(
+        "Unknown visibility '${_visibility}'."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
+  elif [[ "${_fork}" != "y" ]]; then
+    _create="$(
+      gh \
+        repo \
+          create \
+          "${_gh_opts[@]}" \
+          2>&1 || \
+      true)"
+
+  fi
+}
+
 _github_repo_new() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
     _gh_opts=() \
+    _fork \
+    _create_action \
     _msg=() \
     _exists \
     _user_missing_error=() \
     _repo_url
+  _fork="y"
+  if (( 2 < "${#}" )); then
+    _fork="${3}"
+  fi
   _repo_url="https://github.com/${_namespace}/${_repo}"
   _repo_new_failed=""
   _user_missing_error+=(
@@ -875,29 +931,22 @@ _github_repo_new() {
       "on main namespace"
       "'${_namespace}'."
     )
-    _msg_info \
+    _msg_error \
       "${_msg[*]}"
   elif [[ "${_exists}" == "false" ]]; then
     _msg=(
       "hurr"
     )
-    _msg_info \
-      "${_msg[*]}"
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  elif [[ "${_exists}" == "" ]]; then
+    _github_repo_create \
+      "${_fork}"
+  else
+    _github_repo_create \
+      "${_fork}"
   fi
-  # _create="$(
-  #   gh \
-  #     repo \
-  #       fork \
-  #       "${_gh_opts[@]}" \
-  #       2>&1 || \
-  #   true)"
-  _create="$(
-    gh \
-      repo \
-        create \
-        "${_gh_opts[@]}" \
-        2>&1 || \
-    true)"
   if [[ "${_create}" == "${_user_missing_error[*]}" ]]; then
     _msg=(
       "Can't create repository '${_repo}' on"
@@ -909,9 +958,14 @@ _github_repo_new() {
       0
     _repo_new_failed="true"
   elif [[ "${_create}" == "${_repo_url}" ]]; then
+    if [[ "${_fork}" != "y" ]]; then
+      _create_action="created"
+    elif [[ "${_fork}" == "y" ]]; then
+      _create_action="forked"
+    fi
     _msg=(
       "Repository '${_repo}' successfully"
-      "created on namespace '${_namespace}'"
+      "${_create_action} on namespace '${_namespace}'"
       "on Github.com."
     )
     _msg_info \
@@ -928,9 +982,14 @@ _github_repo_new() {
       "${_msg[*]}" \
       0
   elif [[ "${_create}" == "" ]]; then
+    if [[ "${_fork}" != "y" ]]; then
+      _create_action="created"
+    elif [[ "${_fork}" == "y" ]]; then
+      _create_action="forked"
+    fi
     _msg=(
       "Repository '${_repo}' successfully"
-      "created on namespace '${_namespace}'"
+      "${_create_action} on namespace '${_namespace}'"
       "on Github.com."
     )
     _msg_info \
@@ -1398,7 +1457,17 @@ _github_repo_exists() {
     )
     _msg_info \
       "${_msg[*]}"
-    _exists="false"
+    _exists="$(
+      gh \
+        repo \
+          view \
+            "${_namespace}/${_repo}" 2>"/dev/null" || \
+      true)" 
+    if [[ "${_exists}" == "" ]]; then
+      _exists="false"
+    else
+      echo "exists: ${_exists}"
+    fi
   elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
     _exists="$(
       gh \
@@ -1470,6 +1539,13 @@ _repo_exists() {
       "${_repo}" \
       "${_service}" \
       "exists"
+  else
+    _msg=(
+      "Unknown value for "${_checked}"."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
   fi
 }
 
@@ -1554,7 +1630,22 @@ _exists_check() {
       "${_git_service}"
     if [[ "${_exists}" == "true" ]]; then
       _msg=(
-        "hi."
+        "The repo '${_namespace_main}/${_repo}-ur' exists."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    elif [[ "${_exists}" == "false" ]]; then
+      _msg=(
+        "The repo '${_namespace_main}/${_repo}-ur'"
+        "does not exist."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    elif [[ "${_exists}" == "" ]]; then
+      _msg=(
+        "exists variable empty"
       )
       _msg_error \
         "${_msg[*]}" \
@@ -1698,11 +1789,11 @@ _check_local() {
         -c \
         "${_service}" || \
       true)"
-  if [[ "${_checked}" == "1" ]]; then
-    _checked="true"
-  elif [[ "${_checked}" == "0" || \
-          "${_checked}" == "" ]]; then
+  if [[ "${_checked}" == "" || \
+        "${_checked}" == "0" ]]; then
     _checked="false"
+  elif (( 0 < "${_checked}" )); then
+    _checked="true"
   fi
 }
 
