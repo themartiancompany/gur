@@ -62,7 +62,19 @@ _global_variables() {
     "user-repo"
     "dogeos"
     "dogeos-package"
+    "life"
     "life-package"
+    "android-package"
+    "archlinux"
+    "archlinux-package"
+    "macos-package"
+    "mingw-package"
+    "steam-os"
+    "steam-os-package"
+    "termux"
+    "termux-package"
+    "windows"
+    "windows-package"
   )
   mirror_fields=(
     "exists"
@@ -534,7 +546,7 @@ _topics_get() {
         ".repositoryTopics.[].name" 2>/dev/null)
   )
   echo \
-    "${_topics[@]}"
+    "${_topics[*]}"
 }
 
 _github_description_set() {
@@ -580,6 +592,19 @@ _github_topic_set() {
     edit \
     "${_target_namespace}/${_target_repo}" \
     --add-topic \
+      "${_topic}"
+}
+
+_github_topic_remove() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}" \
+    _topic="${3}"
+  gh \
+    repo \
+    edit \
+    "${_target_namespace}/${_target_repo}" \
+    --remove-topic \
       "${_topic}"
 }
 
@@ -690,7 +715,7 @@ _github_topics_check() {
   _topics=( $(
     _topics_get \
       "${_target_namespace}" \
-      "${_repo}")
+      "${_repo}-ur")
   )
   if [[ "${_topics[*]}" == "" ]]; then
     _msg=(
@@ -700,10 +725,24 @@ _github_topics_check() {
     _msg_info \
       "${_msg[*]}"
   fi
+  for _topic in "${_topics[@]}"; do
+    if [[  " ${mirror_topics[*]} " != *" ${_topic} "* ]]; then
+      _msg=(
+        "Removing extra topic '${_topic}'."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _github_topic_remove \
+        "${_target_namespace}" \
+        "${_repo}-ur" \
+        "${_topic}"
+    fi
+  done
   for _topic in "${mirror_topics[@]}"; do
     if [[  " ${_topics[*]} " != *" ${_topic} "* ]]; then
       _msg=(
-        "Missing '${_topic}'."
+        "Missing '${_topic}' in '${_topics[*]}',"
+        "setting."
       )
       _msg_info \
         "${_msg[*]}"
@@ -3385,7 +3424,9 @@ _gur_check() {
     _index \
     _repo \
     _repos_amount \
+    _namespace_dir \
     _msg=()
+  _namespace_dir="${_cache_dir}/${_target_namespace}/${_git_service}"
   if [[ "${_target_value}" != "" ]]; then
     _repo="${_target_value}"
     _repos+=(
@@ -3433,7 +3474,7 @@ _gur_check() {
         "${_msg[*]}"
       _checked="$(
         ( cat \
-            "${_cache_dir}/checked.db" |
+            "${_namespace_dir}/checked.db" |
             grep \
               "${_repo}" ) || \
           true)"
@@ -3453,7 +3494,7 @@ _gur_check() {
         done
         echo \
           "${_repo}" >> \
-          "${_cache_dir}/checked.db"
+          "${_namespace_dir}/checked.db"
       elif [[ "${_checked}" != "" ]]; then
         _msg=(
           "Mirror for package"
