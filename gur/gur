@@ -857,6 +857,9 @@ _github_repo_create() {
           --jq \
             ".visibility")"
     if [[ "${_visibility}" == "PRIVATE" ]]; then
+      _gh_opts+=(
+        --private
+      )
       _create="$(
         gh \
           repo \
@@ -881,6 +884,9 @@ _github_repo_create() {
         1
     fi
   elif [[ "${_fork}" != "y" ]]; then
+    _gh_opts+=(
+      --private
+    )
     _create="$(
       gh \
         repo \
@@ -914,7 +920,6 @@ _github_repo_new() {
     "(https://api.github.com/users/${_namespace})"
   )
   _gh_opts+=(
-    --private
     "${_namespace}/${_repo}"
   )
   "_${_service}_repo_exists" \
