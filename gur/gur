@@ -1529,12 +1529,12 @@ _github_repo_exists() {
           view \
             "${_namespace}/${_repo}" 2>"/dev/null" || \
       true)" 
-      _msg=(
-        "Switch seemingly complete."
-        "Exists value: '${_exists}'."
-      )
-      _msg_info \
-        "${_msg[*]}"
+      # _msg=(
+      #   "Switch seemingly complete."
+      #   "Exists value: '${_exists}'."
+      # )
+      # _msg_info \
+      #   "${_msg[*]}"
   elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
     _exists="$(
       gh \
