@@ -707,7 +707,7 @@ _github_topics_check() {
   _repo="${_target_repo}"
   _msg=(
     "Checking"
-    "'${_target_namespace}/${_repo}'"
+    "'${_target_namespace}/${_repo}-ur'"
     "topics."
   )
   _msg_info \
