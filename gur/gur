@@ -1632,6 +1632,21 @@ _repo_check() {
     )
     _msg_info \
       "${_msg[*]}"
+    if [[ "${_git_service}" == "github" ]]; then
+      _fields_check=(
+        "description"
+        "homepage"
+        "topics"
+      )
+      if [[ "${_repo_type}" == "ur" ]]; then
+        for _field in "${_fields_check[@]}"; do
+          "_${_field}_check" \
+            "${_namespace}" \
+            "${_repo}%-ur" \
+            "${_git_service}"
+        done
+      fi
+    fi
   fi
   cd \
     "${_oldpwd}"
