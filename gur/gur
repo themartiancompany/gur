@@ -3451,6 +3451,8 @@ _gur_sync() {
   for _namespace in "${target_namespaces[@]}"; do
     for _service in "${_git_services[@]}"; do
       if [[ "${_service}" == "github" ]]; then
+        _namespace_active="$(
+          _github_account_active_get)"
         _switch="$(
           gh \
             auth \
