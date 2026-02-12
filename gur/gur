@@ -1613,7 +1613,7 @@ _repo_check() {
         for _field in "${_fields_check[@]}"; do
           "_${_field}_check" \
             "${_namespace}" \
-            "${_repo}%-ur" \
+            "${_repo%-ur}" \
             "${_git_service}"
         done
       fi
@@ -1642,7 +1642,7 @@ _repo_check() {
         for _field in "${_fields_check[@]}"; do
           "_${_field}_check" \
             "${_namespace}" \
-            "${_repo}%-ur" \
+            "${_repo%-ur}" \
             "${_git_service}"
         done
       fi
