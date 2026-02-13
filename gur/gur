@@ -795,6 +795,8 @@ _bur_gpg_key_get() {
         "private"
     )
   fi
+  echo \
+    "opened keys: ${!_bur_keys[*]}"
   if [[ " ${!_bur_keys[*]} " == *" ${_bur_id} "* ]]; then
     _msg=(
       "Reusing open key for address"
@@ -827,11 +829,12 @@ _bur_gpg_key_get() {
       new \
       "${_bur_id}" \
       "'${_target_namespace}' bur '${_target_namespace}' builder signing key"
-    _bur_gpg_key="$(
+    _bur_keys["${_bur_id}"]="$(
       evm-gpg \
         "${_evm_gpg_opts[@]}" \
         export || \
         true)"
+    _bur_gpg_key="${_bur_keys["${_bur_id}"]}"
   fi
 }
 
@@ -913,8 +916,40 @@ _github_repo_create() {
               "${_namespace_main}/${_repo}" \
               2>&1 || \
           true)"
+      elif [[ "${_create_individual}" == "https://github.com/${_namespace_active}/${_repo}-"* ]]; then
+        _create="$(
+          gh \
+            repo \
+              fork \
+              --org \
+                "${_namespace}" \
+              "${_namespace_main}/${_repo}" \
+              2>&1 || \
+          true)"
       else
         _create="${_create_individual}"
+      fi
+    elif [[ "${_visibility}" == "" ]]; then
+      if [[ "${_namespace}" == "${_namespace_main}" ]]; then
+        _gh_opts+=(
+          --private
+        )
+        _create="$(
+          gh \
+            repo \
+              create \
+              "${_gh_opts[@]}" \
+              2>&1 || \
+          true)"
+      elif [[ "${_namespace}" != "${_namespace_main}" ]]; then
+        _msg=(
+          "Empty visibility for"
+          "repository '${_repo}' on '${_namespace}'"
+          "namespace."
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          1
       fi
     else
       _msg=(
