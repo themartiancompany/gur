@@ -795,11 +795,27 @@ _bur_gpg_key_get() {
         "private"
     )
   fi
-  _bur_gpg_key="$(
-    evm-gpg \
-      "${_evm_gpg_opts[@]}" \
-      export || \
-      true)"
+  if [[ " ${!_bur_keys[*]} " != *" ${_bur_id} "* ]]; then
+    _msg=(
+      "Reusing open key for address"
+      "'${_bur_id}'."
+    )
+    _msg_info \
+      "${_msg_info[*]}"
+  elif [[ " ${!_bur_keys[*]} " != *" ${_bur_id} "* ]]; then
+    _msg=(
+      "Opening key for address"
+      "'${_bur_id}'."
+    )
+    _msg_info \
+      "${_msg_info[*]}"
+    _bur_keys["${_bur_id}"]="$(
+      evm-gpg \
+        "${_evm_gpg_opts[@]}" \
+        export || \
+        true)"
+  fi
+  _bur_gpg_key="${_bur_keys["${_bur_id}"]}"
   if [[ "${_bur_gpg_key}" == "" ]]; then
     if [[ "${quiet}" == "n" ]]; then
       _evm_gpg_opts+=(
@@ -3752,6 +3768,9 @@ _gur() {
     _command_args=() \
     _msg=() \
     _service
+  declare \
+    -A \
+    "_bur_keys"
   shift \
     9
   for _service \
