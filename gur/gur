@@ -73,7 +73,7 @@ _global_variables() {
     "steam-os-package"
     "termux"
     "termux-package"
-    "windows"
+    "wsl-package"
     "windows-package"
   )
   mirror_fields=(
@@ -3614,7 +3614,12 @@ _gur_build() {
         "Gur generated commit." || \
     echo \
       "false")"
-  if [[ "${_committed}" == "false" ]]; then
+  if [[ "${_committed}" == "" ]]; then
+    _msg=(
+      "Gur generated commit.")
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ "${_committed}" == "false" ]]; then
     _msg=(
       "No changes have been commit."
     )
