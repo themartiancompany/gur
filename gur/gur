@@ -91,6 +91,7 @@ _global_variables() {
     "quota"
     "releases"
     "release"
+    "status"
   )
   color=""
   quiet=""
@@ -2628,6 +2629,15 @@ _gitlab_release_latest_get() {
             1)"
 }
 
+_status_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}"
+  _gitlab_releases_get \
+    "${_namespace}" \
+    "${_repo}"
+}
+
 _release_get() {
   local \
     _namespace="${1}" \
@@ -3655,6 +3665,7 @@ _gur_build() {
     _tag_exists \
     _target_repo \
     _remote \
+    _release \
     _msg=()
   _target_repo="${_target_key}"
   _ci_check \
@@ -3725,6 +3736,13 @@ _gur_build() {
     push \
       "${_remote}" \
       --tags
+  _release="$(
+    gh \
+      release \
+        create \
+        "${_tag}")"
+  echo \
+    "${_release}"
   # TODO:
   # implement build status command
   # which can just ask gitlab
