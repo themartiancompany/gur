@@ -3738,6 +3738,8 @@ _gur_build() {
       --tags
   _release="$(
     gh \
+      --repo \
+        "${_target_namespace}/${_repo_name}-ur" \
       release \
         create \
         "${_tag}")"
@@ -4554,7 +4556,7 @@ while \
       target_namespaces+=(
         "${OPTARG}"
       ) ;;
-    N)
+    M)
       override_namespace_main="${OPTARG}" ;;
     t)
       override_repo_type="${OPTARG}" ;;
