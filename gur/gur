@@ -3900,12 +3900,14 @@ _gur_build() {
     _tarname_gnu="dogeos-gnu-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
     _tarname_windows="dogeos-windows-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
     _release_notes_text=(
-      '### `'${_repo_name}'` Github User Repository mirror (Gur)'
+      '### `'${_repo_name}'` Github User Repository (gur) mirror'
       ""
       "[Ur]("
       "  https://github.com/themartiancompany/ur)"
       "binary packages downloads for [DogeOS]("
       "  https://github.com/themartiancompany/dogeos)"
+      "built using Github CI machines ([Gur]("
+      "  https://github.com/themartiancompany/gur)"
       "are available below split by base platform."
       ""
       "GNU packages are retro-compatible with [Arch Linux]("
