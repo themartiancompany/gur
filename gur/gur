@@ -3743,36 +3743,42 @@ _gur_build() {
       "${_remote}" \
       --tags
   if [[ "${_git_service}" == "github" ]]; then
-    _arch=( $(
+    _recipe_arch=( $(
       recipe-get \
         "PKGBUILD" \
         "arch")
     )
-    echo \
-      ""
+    _repo_http_url="https:${_git_service}/${_target_namespace}"
+    _release_dir_url="${_repo_http_url}/releases/download/${_tag}"
+    _tarname_android="dogeos-android-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
+    _tarname_gnu="dogeos-gnu-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
+    _tarname_windows="dogeos-windows-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
     _release_notes_text=(
       "Test"
       ""
-      "### `${_repo_name}` Github User Repository mirror (Gur)"
+      '### `'${_repo_name}'` Github User Repository mirror (Gur)'
       ""
       "Binary packages downloads for DogeOS are available below"
       "split by base platform."
       ""
       "#### DogeOS GNU base"
       ""
-      "dogeos-gnu-${_repo_name}-${_tag}-any.pkg.tar.xz"
+      "[dogeos-gnu-${_repo_name}-${_tag}-any.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_gnu})"
       ""
       "#### DogeOS Android base"
       ""
-      "dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz"
+      "[dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_android})"
       ""
       "#### DogeOS Windows base"
       ""
-      "dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz"
+      "[dogeos-windows-${_repo_name}-${_tag}-any.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_windows})"
     )
     printf \
-      "%s\n" \
-      "${_release_notes[@]}"
+      '%s\n' \
+      "${_release_notes_text[@]}"
     _release="$(
       gh \
         --repo \
