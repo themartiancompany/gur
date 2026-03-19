@@ -3666,7 +3666,12 @@ _gur_build() {
     _target_repo \
     _remote \
     _release \
-    _msg=()
+    _release_notes \
+    _release_notes_text=() \
+    _msg=() \
+  _release_notes="$(
+    mktemp \
+      --suffix=".md")"
   _target_repo="${_target_key}"
   _ci_check \
     "${_target_namespace}" \
@@ -3698,7 +3703,8 @@ _gur_build() {
     "${_msg[*]}"
   if [[ "${_committed}" == "" ]]; then
     _msg=(
-      "Gur generated commit.")
+      "Gur generated commit."
+    )
     _msg_info \
       "${_msg[*]}"
   fi
@@ -3736,15 +3742,55 @@ _gur_build() {
     push \
       "${_remote}" \
       --tags
-  _release="$(
-    gh \
-      --repo \
-        "${_target_namespace}/${_repo_name}-ur" \
-      release \
-        create \
-        "${_tag}")"
-  echo \
-    "${_release}"
+  if [[ "${_git_service}" == "github" ]]; then
+    _arch=( $(
+      recipe-get \
+        "PKGBUILD" \
+        "arch")
+    )
+    echo \
+      ""
+    _release_notes_text=(
+      "Test"
+      ""
+      "### `${_repo_name}` Github User Repository mirror (Gur)"
+      ""
+      "Binary packages downloads for DogeOS are available below"
+      "split by base platform."
+      ""
+      "#### DogeOS GNU base"
+      ""
+      "dogeos-gnu-${_repo_name}-${_tag}-any.pkg.tar.xz"
+      ""
+      "#### DogeOS Android base"
+      ""
+      "dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz"
+      ""
+      "#### DogeOS Windows base"
+      ""
+      "dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz"
+    )
+    printf \
+      "%s\n" \
+      "${_release_notes[@]}"
+    _release="$(
+      gh \
+        --repo \
+          "${_target_namespace}/${_repo_name}-ur" \
+        release \
+          create \
+          "${_tag}")"
+    _msg=(
+      "Released version '${_tag}'"
+      "for package '${_repo_name}'"
+      "on namespace '${_target_namespace}'"
+      "on Github."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    echo \
+      "${_release}"
+  fi
   # TODO:
   # implement build status command
   # which can just ask gitlab
