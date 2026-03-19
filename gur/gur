@@ -3899,9 +3899,7 @@ _gur_build() {
     _tarname_android="dogeos-android-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
     _tarname_gnu="dogeos-gnu-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
     _tarname_windows="dogeos-windows-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
-    _release_notes_text=(
-      '### `'${_repo_name}'` Github User Repository (gur) mirror'
-      ""
+    _release_notes_description=(
       "[Ur]("
       "  https://github.com/themartiancompany/ur)"
       "binary packages downloads for [DogeOS]("
@@ -3909,15 +3907,22 @@ _gur_build() {
       "built using Github CI machines ([Gur]("
       "  https://github.com/themartiancompany/gur)"
       "are available below split by base platform."
-      ""
+    )
+    _release_notes_compatibility_text=(
       "GNU packages are retro-compatible with [Arch Linux]("
       "  https://archlinux.org), Android packages with [Termux]("
       "  https://termux.dev) and Windows packages with"
       "[Msys2]("
       "  https://msys2.org)."
+    )
+    _release_notes_text=(
+      '### `'${_repo_name}'` Github User Repository (gur) mirror'
+      ""
+      "${_release_notes_description[*]}"
+      ""
+      "${_release_notes_compatibility_text[*]}"
       ""
       "#### GNU"
-      ""
       "[dogeos-gnu-${_repo_name}-${_tag}-any.pkg.tar.xz]("
       "  ${_release_dir_url}/${_tarname_gnu})"
       ""
@@ -3931,9 +3936,9 @@ _gur_build() {
       "[dogeos-windows-${_repo_name}-${_tag}-any.pkg.tar.xz]("
       "  ${_release_dir_url}/${_tarname_windows})"
     )
-    printf \
-      '%s\n' \
-      "${_release_notes_text[@]}" > \
+      printf \
+        '%s\n' \
+        "${_release_notes_text[@]}" > \
       "${_release_notes}"
     _release_create_opts+=(
       -F
