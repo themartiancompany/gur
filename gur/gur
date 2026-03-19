@@ -3754,8 +3754,6 @@ _gur_build() {
     _tarname_gnu="dogeos-gnu-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
     _tarname_windows="dogeos-windows-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
     _release_notes_text=(
-      "Test"
-      ""
       '### `'${_repo_name}'` Github User Repository mirror (Gur)'
       ""
       "Binary packages downloads for DogeOS are available below"
@@ -3778,14 +3776,20 @@ _gur_build() {
     )
     printf \
       '%s\n' \
-      "${_release_notes_text[@]}"
+      "${_release_notes_text[@]}" > \
+      "${_release_notes}"
+    _release_create_opts+=(
+      -F
+        "${_release_notes}"
+    )
     _release="$(
       gh \
         --repo \
           "${_target_namespace}/${_repo_name}-ur" \
         release \
           create \
-          "${_tag}")"
+          "${_tag}" \
+          "${_release_create_opts[@]}")"
     _msg=(
       "Released version '${_tag}'"
       "for package '${_repo_name}'"
@@ -3796,6 +3800,8 @@ _gur_build() {
       "${_msg[*]}"
     echo \
       "${_release}"
+    rm \
+      "${_release_notes}"
   fi
   # TODO:
   # implement build status command
