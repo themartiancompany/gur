@@ -1874,6 +1874,27 @@ _ci_check() {
       "gitlab"
     )
   fi
+  if [[ " ${_git_services[*]} " == *" github "* ]]; then
+    if [[ ! -d "${PWD}/.github/workflows" ]]; then
+      _msg=(
+        "No Github CI workflows"
+        "directory found."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
+  elif [[ " ${_git_services[*]} " == " gitlab " ]]; then
+    if [[ ! -d "${PWD}/.github-ci.yml" ]]; then
+      _msg=(
+        "No Gitlab CI file"
+        "found."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
+  fi
   for _service in "${_git_services[@]}"; do 
     _exists_check \
       "${_target_namespace}" \
@@ -2700,24 +2721,12 @@ _github_release_get() {
   _gh_opts+=(
     --repo
       "${_namespace}/${_repo}-ur"
-    # --json
-    #   "assets"
-    # --jq
-    #   "."
-    # --jq
-    #   ".[].tagName"
   )
-  if [[ "${quiet}" == "n" ]]; then
-    _gl_dl_opts+=(
-      -v
-    )
-  fi
-  _github_releases_get \
-    "${_namespace}" \
-    "${_repo}"
   if [[ "${_tag}" == "" ]]; then
+    _github_releases_get \
+      "${_namespace}" \
+      "${_repo}"
     _tag="${_releases[-1]}"
-    # _gitlab_release_latest_get
   fi
   gh \
     "${_gh_opts[@]}" \
@@ -2731,24 +2740,6 @@ _github_release_get() {
       "${_tag}" \
       --pattern \
         '*.pkg.tar.xz'
-  # _urls+=( $(
-  #   cat \
-  #     "${_cache_dir}/releases.json" |
-  #     jq \
-  #       --raw-output \
-  #       '.[] | select(.tag_name == "'${_tag}'").assets.links.[].direct_asset_url')
-  # )
-  # for _url in "${_urls[@]}"; do
-  #   _file="$(
-  #     basename \
-  #       "${_url}")"
-  #   _output_file="$(pwd)/${_file}"
-  #   gl-dl \
-  #     "${_gl_dl_opts[@]}" \
-  #     -o \
-  #       "${_output_file}" \
-  #     "${_url}"
-  # done
 }
 
 _gitlab_release_get() {
@@ -3795,6 +3786,125 @@ _gur_sync() {
   done
 }
 
+_release_notes_new() {
+  local \
+    _pkgbuild="${1}" \
+    _out="${2}" \
+    _arches=() \
+    _release_notes_compatibility_text=() \
+    _release_notes_description=() \
+    _release_notes_links=() \
+    _release_notes_links_any=() \
+    _release_notes_links_arch=() \
+    _release_notes_text=()
+  _arches=( $(
+    recipe-get \
+      -o \
+        "array" \
+      -d \
+        " " \
+      "${_pkgbuild}" \
+      "arch")
+  )
+  _msg=(
+    "Generating release notes."
+  )
+  _release_notes_description=(
+    "[*User Repository*]("
+    "  https://github.com/themartiancompany/ur) (Ur)"
+    "Gur ([*Git\* User Repository*]("
+    "  https://github.com/themartiancompany/gur))"
+    "binary packages downloads for"
+    "[DogeOS]("
+    "  https://github.com/themartiancompany/dogeos)"
+    "built using Github CI machines are available"
+    "below for each base platform."
+  )
+  _release_notes_compatibility_text=(
+    "GNU packages are retro-compatible with [Arch Linux]("
+    "  https://archlinux.org), Android packages with [Termux]("
+    "  https://termux.dev) and Windows packages with"
+    "[Msys2]("
+    "  https://msys2.org)."
+  )
+  _repo_http_url="https:${_git_service}.com/${_target_namespace}/${_repo_name}"
+  _release_dir_url="${_repo_http_url}/releases/download/${_tag}"
+  if [[ " ${_arches[*]} " == *" any "* ]]; then
+    _tarname_android="dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz"
+    _tarname_gnu="dogeos-gnu-${_repo_name}-${_tag}-any.pkg.tar.xz"
+    _tarname_windows="dogeos-windows-${_repo_name}-${_tag}-any.pkg.tar.xz"
+    _release_notes_links_any=(
+      "#### GNU"
+      "[dogeos-gnu-${_repo_name}-${_tag}-any.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_gnu})"
+      ""
+      "#### Android"
+      ""
+      "[dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_android})"
+      ""
+      "#### Windows"
+      ""
+      "[dogeos-windows-${_repo_name}-${_tag}-any.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_windows})"
+    )
+    _release_notes_links=(
+      "${_release_notes_links_any[@]}"
+    )
+  elif [[ " ${_arches[*]} " == *" x86_64 "* ]]; then
+    _tarname_android_aarch64="dogeos-android-${_repo_name}-${_tag}-aarch64.pkg.tar.xz"
+    _tarname_android_arm="dogeos-android-${_repo_name}-${_tag}-arm.pkg.tar.xz"
+    _tarname_android_i686="dogeos-android-${_repo_name}-${_tag}-i686.pkg.tar.xz"
+    _tarname_android_x86_64="dogeos-android-${_repo_name}-${_tag}-x86_64.pkg.tar.xz"
+    _tarname_gnu="dogeos-gnu-${_repo_name}-${_tag}-any.pkg.tar.xz"
+    _tarname_windows="dogeos-windows-${_repo_name}-${_tag}-x86_64.pkg.tar.xz"
+    _release_notes_links_arch=(
+      "#### GNU"
+      "[dogeos-gnu-${_repo_name}-${_tag}-x86_64.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_gnu})"
+      ""
+      "#### Android"
+      ""
+      '###### ARM 64-bit (`aarch64`)'
+      "[dogeos-android-${_repo_name}-${_tag}-arm.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_android_aarch64})"
+      ""
+      '###### ARM 32-bit (`arm`)'
+      "[dogeos-android-${_repo_name}-${_tag}-arm.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_android_arm})"
+      ""
+      '###### Intel-compatible 32-bit (`i686`)'
+      "[dogeos-android-${_repo_name}-${_tag}-i686.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_android_i686})"
+      ""
+      '###### Intel-compatible 64-bit (`x86_64`)'
+      "[dogeos-android-${_repo_name}-${_tag}-x86_64.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_android_x86_64})"
+      ""
+      "#### Windows"
+      ""
+      "[dogeos-windows-${_repo_name}-${_tag}-x86_64.pkg.tar.xz]("
+      "  ${_release_dir_url}/${_tarname_windows})"
+    )
+    _release_notes_links=(
+      "${_release_notes_links_arch[@]}"
+    )
+  fi
+  _release_notes_text=(
+    '### `'${_repo_name}'` Github User Repository (gur) mirror'
+    ""
+    "${_release_notes_description[*]}"
+    ""
+    "${_release_notes_compatibility_text[*]}"
+    ""
+    "${_release_notes_links[@]}"
+  )
+    printf \
+      '%s\n' \
+      "${_release_notes_text[@]}" > \
+    "${_out}"
+}
+
 _gur_build() {
   local \
     _git_service="${1}" \
@@ -3889,59 +3999,8 @@ _gur_build() {
       "${_remote}" \
       --tags
   if [[ "${_git_service}" == "github" ]]; then
-    _recipe_arch=( $(
-      recipe-get \
-        "PKGBUILD" \
-        "arch")
-    )
-    _repo_http_url="https:${_git_service}.com/${_target_namespace}/${_repo_name}"
-    _release_dir_url="${_repo_http_url}/releases/download/${_tag}"
-    _tarname_android="dogeos-android-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
-    _tarname_gnu="dogeos-gnu-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
-    _tarname_windows="dogeos-windows-${_repo_name}-${_tag}-${_recipe_arch}.pkg.tar.xz"
-    _release_notes_description=(
-      ""
-      "[*User Repository*]("
-      "  https://github.com/themartiancompany/ur) (Ur)"
-      "Gur ([*Git\* User Repository*]("
-      "  https://github.com/themartiancompany/gur))"
-      "binary packages downloads for"
-      "[DogeOS]("
-      "  https://github.com/themartiancompany/dogeos)"
-      "built using Github CI machines are available"
-      "below for each base platform."
-    )
-    _release_notes_compatibility_text=(
-      "GNU packages are retro-compatible with [Arch Linux]("
-      "  https://archlinux.org), Android packages with [Termux]("
-      "  https://termux.dev) and Windows packages with"
-      "[Msys2]("
-      "  https://msys2.org)."
-    )
-    _release_notes_text=(
-      '### `'${_repo_name}'` Github User Repository (gur) mirror'
-      ""
-      "${_release_notes_description[*]}"
-      ""
-      "${_release_notes_compatibility_text[*]}"
-      ""
-      "#### GNU"
-      "[dogeos-gnu-${_repo_name}-${_tag}-any.pkg.tar.xz]("
-      "  ${_release_dir_url}/${_tarname_gnu})"
-      ""
-      "#### Android"
-      ""
-      "[dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz]("
-      "  ${_release_dir_url}/${_tarname_android})"
-      ""
-      "#### Windows"
-      ""
-      "[dogeos-windows-${_repo_name}-${_tag}-any.pkg.tar.xz]("
-      "  ${_release_dir_url}/${_tarname_windows})"
-    )
-      printf \
-        '%s\n' \
-        "${_release_notes_text[@]}" > \
+    _release_notes_new \
+      "${_pkgbuild}" \
       "${_release_notes}"
     _release_create_opts+=(
       -F
@@ -3955,6 +4014,8 @@ _gur_build() {
           create \
           "${_tag}" \
           "${_release_create_opts[@]}")"
+    echo \
+      "${_release}"
     _msg=(
       "Released version '${_tag}'"
       "for package '${_repo_name}'"
@@ -3963,8 +4024,6 @@ _gur_build() {
     )
     _msg_info \
       "${_msg[*]}"
-    echo \
-      "${_release}"
     rm \
       "${_release_notes}"
   fi
