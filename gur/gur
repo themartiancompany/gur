@@ -1581,8 +1581,8 @@ _gitlab_quota_get() {
 _github_repo_exists() {
   local \
     _namespace="${1}" \
-    _namespace_active \
     _repo="${2}" \
+    _namespace_active \
     _switch_error=() \
     _msg=()
   _msg=(
@@ -2623,7 +2623,8 @@ _github_releases_get() {
         switch \
         -u \
           "${_namespace}" \
-        2>&1)"
+        2>&1 || \
+    true)"
   if [[ "${_switch}" == "${_switch_error[*]}" ]]; then
     _msg=(
       "No '${_namespace}' account"
