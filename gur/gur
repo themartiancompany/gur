@@ -1598,21 +1598,9 @@ _github_repo_exists() {
   )
   _namespace_active="$(
     _github_account_active_get)"
-  _switch="$(
-    gh \
-      auth \
-        switch \
-        -u \
-          "${_namespace}" || \
-    gh \
-      auth \
-        switch \
-        -u \
-          "${_namespace_active}")"
-  if [[ "${_switch}" == "${_switch_error[*]}" ]]; then
+  if [[ "${_namespace_active}" == "" ]]; then
     _msg=(
-      "No '${_namespace}' account"
-      "configured for Github.com."
+      "No sign-in."
     )
     _msg_info \
       "${_msg[*]}"
@@ -1622,44 +1610,70 @@ _github_repo_exists() {
           view \
             "${_namespace}/${_repo}" 2>"/dev/null" || \
       true)" 
-    if [[ "${_exists}" == "" ]]; then
-      _exists="false"
+  elif [[ "${_namespace_active}" != "" ]]; then
+    _switch="$(
+      gh \
+        auth \
+          switch \
+          -u \
+            "${_namespace}" || \
+      gh \
+        auth \
+          switch \
+          -u \
+            "${_namespace_active}")"
+    if [[ "${_switch}" == "${_switch_error[*]}" ]]; then
+      _msg=(
+        "No '${_namespace}' account"
+        "configured for Github.com."
+      )
+      _msg_info \
+        "${_msg[*]}"
+      _exists="$(
+        gh \
+          repo \
+            view \
+              "${_namespace}/${_repo}" 2>"/dev/null" || \
+        true)" 
+      if [[ "${_exists}" == "" ]]; then
+        _exists="false"
+      else
+        echo \
+          "exists: ${_exists}"
+      fi
+    elif [[ "${_switch}" == "" ]]; then
+      _exists="$(
+        gh \
+          repo \
+            view \
+              "${_namespace}/${_repo}" 2>"/dev/null" || \
+        true)" 
+        # _msg=(
+        #   "Switch seemingly complete."
+        #   "Exists value: '${_exists}'."
+        # )
+        # _msg_info \
+        #   "${_msg[*]}"
+    elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
+      _exists="$(
+        gh \
+          repo \
+            view \
+              "${_namespace}/${_repo}" \
+          2>"/dev/null" || \
+        true)" 
     else
       echo \
-        "exists: ${_exists}"
+        "${_switch}"
+      _msg=(
+        "Unknown error while"
+        "switching account."
+      )
+      _exists=""
+      _msg_error \
+        "${_msg[*]}" \
+        0
     fi
-  elif [[ "${_switch}" == "" ]]; then
-    _exists="$(
-      gh \
-        repo \
-          view \
-            "${_namespace}/${_repo}" 2>"/dev/null" || \
-      true)" 
-      # _msg=(
-      #   "Switch seemingly complete."
-      #   "Exists value: '${_exists}'."
-      # )
-      # _msg_info \
-      #   "${_msg[*]}"
-  elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
-    _exists="$(
-      gh \
-        repo \
-          view \
-            "${_namespace}/${_repo}" \
-        2>"/dev/null" || \
-      true)" 
-  else
-    echo \
-      "${_switch}"
-    _msg=(
-      "Unknown error while"
-      "switching account."
-    )
-    _exists=""
-    _msg_error \
-      "${_msg[*]}" \
-      0
   fi
 }
 
