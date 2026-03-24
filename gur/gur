@@ -1885,7 +1885,7 @@ _ci_check() {
         1
     fi
   elif [[ " ${_git_services[*]} " == " gitlab " ]]; then
-    if [[ ! -d "${PWD}/.github-ci.yml" ]]; then
+    if [[ ! -e "${PWD}/.gitlab-ci.yml" ]]; then
       _msg=(
         "No Gitlab CI file"
         "found."
@@ -2728,11 +2728,11 @@ _github_release_get() {
       "${_repo}"
     _tag="${_releases[-1]}"
   fi
-  gh \
-    "${_gh_opts[@]}" \
-    release \
-      view \
-      "${_tag}"
+  # gh \
+  #   "${_gh_opts[@]}" \
+  #   release \
+  #     view \
+  #     "${_tag}"
   gh \
     "${_gh_opts[@]}" \
     release \
