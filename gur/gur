@@ -2773,6 +2773,12 @@ _github_release_get() {
         1
     fi
     _tag="${_releases[-1]}"
+    _msg=(
+      "No release specified,"
+      "getting latest tag '${_tag}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
   fi
   # gh \
   #   "${_gh_opts[@]}" \
