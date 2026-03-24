@@ -4379,15 +4379,22 @@ _github_accounts_get() {
 _github_account_active_get() {
   local \
     _query_out \
-    _namespace_active
+    _namespace_active \
+    _key_error=()
+  _key_error=(
+    'could not find key "hosts"'
+  )
   _query_out="$(
     gh \
       auth \
       status \
       --json \
-        "hosts" || \
+        "hosts" \
+      2>&1 || \
       true)"
   if [[ "${_query_out}" == "" ]]; then
+    _namespace_active=""
+  elif [[ "${_query_out}" == "${_key_error[*]}" ]]; then
     _namespace_active=""
   else
     _namespace_active="$(
