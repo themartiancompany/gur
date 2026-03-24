@@ -1625,7 +1625,8 @@ _github_repo_exists() {
     if [[ "${_exists}" == "" ]]; then
       _exists="false"
     else
-      echo "exists: ${_exists}"
+      echo \
+        "exists: ${_exists}"
     fi
   elif [[ "${_switch}" == "" ]]; then
     _exists="$(
@@ -1645,7 +1646,8 @@ _github_repo_exists() {
       gh \
         repo \
           view \
-            "${_namespace}/${_repo}" 2>"/dev/null" || \
+            "${_namespace}/${_repo}" \
+        2>"/dev/null" || \
       true)" 
   else
     echo \
@@ -1706,6 +1708,8 @@ _repo_exists() {
     "_${_service}_repo_exists" \
       "${_namespace}" \
       "${_repo}"
+    _msg_info \
+      "Done."
     _checked_local \
       "${_namespace}" \
       "${_repo}" \
