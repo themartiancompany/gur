@@ -2591,8 +2591,9 @@ _github_releases_get() {
     _namespace="${1}" \
     _repo="${2}" \
     _gh_opts=() \
+    _not_logged_error=() \
     _switch_okay \
-    _switch_error
+    _switch_error=()
   _switch_okay=(
     "✓ Switched active account"
     "for github.com to"
@@ -2617,6 +2618,9 @@ _github_releases_get() {
   _switch_error=(
     "no accounts matched that criteria"
   )
+  _not_logged_error=(
+    "not logged in to any hosts"
+  )
   _switch="$(
     gh \
       auth \
@@ -2633,13 +2637,23 @@ _github_releases_get() {
     _msg_info \
       "${_msg[*]}"
     # _releases="false"
-  elif [[ "${_switch}" != "${_switch_error[*]}" ]]; then
+  elif [[ "${_switch}" == "${_not_logged_error[*]}" ]]; then
+    _msg=(
+      "No account, in particular no"
+      "'${_namespace}' account"
+      "configured for Github.com."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  elif [[ "${_switch}" != "${_switch_error[*]}" && \
+          "${_switch}" != "${_not_logged_error[*]}" ]]; then
     if [[ "${_switch}" == "" ]]; then
       true
     elif [[ "${_switch}" == "${_switch_okay[*]}" ]]; then
       true
     else
-      echo "${_switch}"
+      echo \
+        "${_switch}"
     fi
     # gh \
     # _exists="$(
@@ -2750,6 +2764,14 @@ _github_release_get() {
     _github_releases_get \
       "${_namespace}" \
       "${_repo}"
+    if (( "${#_releases[@]}" < 1 )); then
+      _msg=(
+        "Error retrieving releases list."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
     _tag="${_releases[-1]}"
   fi
   # gh \
