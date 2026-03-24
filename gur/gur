@@ -1611,6 +1611,11 @@ _github_repo_exists() {
             "${_namespace}/${_repo}" 2>"/dev/null" || \
       true)" 
   elif [[ "${_namespace_active}" != "" ]]; then
+    _msg=(
+      "Switching to account '${_namespace}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
     _switch="$(
       gh \
         auth \
@@ -4350,17 +4355,26 @@ _github_accounts_get() {
 
 _github_account_active_get() {
   local \
+    _query_out \
     _namespace_active
-  _namespace_active="$(
+  _query_out="$(
     gh \
       auth \
       status \
       --json \
-        "hosts" |
+        "hosts" || \
+      true)"
+  if [[ "${_query_out}" == "" ]]; then
+    _namespace_active=""
+  else
+    _namespace_active="$(
+      echo \
+        "${_query_out}" |
       jq \
         --raw-output \
         '.hosts."github.com".[] | select(.active == true).login' || \
     true)"
+  fi
   if [[ "${_namespace_active}" == "null" ]]; then
     _namespace_active=""
   fi
