@@ -41,6 +41,8 @@ _global_variables() {
   git_services=()
   git_services_amount=""
   target_namespaces=()
+  target_platform=""
+  target_arch=""
   namespace_main=""
   target_command=""
   target_key=""
@@ -98,6 +100,17 @@ _global_variables() {
 }
 
 _requirements() {
+  local \
+    _gh \
+    _os
+  _os="$(
+    uname \
+      -o)"
+  if [[ "${_os}" == "Android" ]]; then
+    _gh="gh"
+  else
+    _gh="github-cli"
+  fi
   _check_cmd \
     "cat" \
     "coreutils"
@@ -107,13 +120,17 @@ _requirements() {
     "evm-gpg" \
     "evm-gnupg"
   _check_cmd \
-    'gh'
+    'gh' \
+    "${_gh}"
   _check_cmd \
     'gl-dl'
   _check_cmd \
     'python'
   _check_cmd \
     'jq'
+  _check_cmd \
+    "platform-get" \
+    "reallymakepkg"
   _check_cmd \
     "recipe-get" \
     "reallymakepkg"
@@ -2791,7 +2808,7 @@ _github_release_get() {
       download \
       "${_tag}" \
       --pattern \
-        '*.pkg.tar.xz'
+        "dogeos-${_target_platform}-*.pkg.tar.xz"
 }
 
 _gitlab_release_get() {
@@ -3176,19 +3193,21 @@ _github_jobs_get() {
   )
   _github_log_id_get \
     "${_namespace}" \
-    "${_repo_name}"
+    "${_repo_name}" \
+    "true" \
+    "release"
   _github_log_type_get \
     "${_namespace}" \
     "${_repo_name}" \
     "${_log_id}"
   if [[ "${_log_type}" != "${_job_type}" ]]; then
     _msg=(
-      "Task with ID '${_log_id}' corresponds"
-      "corresponds to '${_job_type}' type."
+      "Task with ID '${_log_id}' has"
+      "type '${_job_type}' instead of requested 'release'."
     )
     _msg_error \
       "${_msg[*]}" \
-      1
+      0
   fi
   _gh_opts+=(
     --json
@@ -4208,10 +4227,12 @@ _gur() {
     _namespace_main="${3}" \
     _cache_dir="${4}" \
     _repo_type="${5}" \
-    _repo_name="${6}" \
-    _target_command="${7}" \
-    _target_key="${8}" \
-    _target_value="${9}" \
+    _target_platform="${6}" \
+    _target_arch="${7}" \
+    _repo_name="${8}" \
+    _target_command="${9}" \
+    _target_key="${10}" \
+    _target_value="${11}" \
     _git_services=() \
     _target_namespaces=() \
     _repos=() \
@@ -4222,7 +4243,7 @@ _gur() {
     -A \
     "_bur_keys"
   shift \
-    9
+    11
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -4764,6 +4785,14 @@ _set_overrides() {
   _cache_dir_auto_detect
   target_namespaces_amount="${#target_namespaces[@]}"
   _repo_info_auto_detect
+  _set_override \
+    "target" \
+    "arch" \
+    "$(uname -m)"
+  _set_override \
+    "target" \
+    "platform" \
+    "$(platform-get)"
   if [[ "${_display_help}" == "true" ]]; then
     _usage \
       1
@@ -4842,6 +4871,15 @@ Usage:
                             or 'source' (the Git source repository
                             for an universal recipe).
                             Default: ${repo_type}
+     -P <target-platform>   Target platform for the 'get release'
+                            command.
+                            Default: ${target_platform}
+     -A <target-arch>       Target CPU architecture for the
+                            'get release' command.
+                            Default: ${target_arch}
+     -N <namespace>         Target namespace for the Ur
+                            repositories.
+                            Default: ${target_namespaces[*]}
      -W <cache-dir>         Location where to temporary store
                             the downloaded resource chunks.
                             Default: ${cache_dir}
@@ -4883,6 +4921,9 @@ _show_config() {
   _msg_info "                     Target key:   ${target_key}"
   _msg_info "                   Target value:   ${target_value}"
   _msg_info "                Extra arguments:   ${command_args[*]}"
+  _msg_info "              Release options:"
+  _msg_info "                Target platform:   ${target_platform}"
+  _msg_info "            Target architecture:   ${target_arch}"
   _msg_info "          Application options:"
   _msg_info "                Cache directory:   ${cache_dir}"
 }
@@ -4894,10 +4935,14 @@ _config_user_init \
 # shellcheck disable=SC2034
 while \
   getopts \
-    'm:N:M:t:W:cvh?' \
+    'P:A:m:N:M:t:W:cvh?' \
     arg; do
   case \
     "${arg}" in
+    P)
+      override_target_platform="${OPTARG}" ;;
+    A)
+      override_target_arch="${OPTARG}" ;;
     m)
       git_services+=(
         "${OPTARG}"
@@ -4969,6 +5014,8 @@ app_opts=(
   "${namespace_main}"
   "${cache_dir}"
   "${repo_type}"
+  "${target_platform}"
+  "${target_arch}"
   "${repo_name}"
   "${target_command}"
   "${target_key}"
