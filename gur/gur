@@ -2808,7 +2808,7 @@ _github_release_get() {
       download \
       "${_tag}" \
       --pattern \
-        "dogeos-${_target_platform}-*.pkg.tar.xz"
+        "dogeos-${_target_platform}-*.pkg.tar.xz*"
 }
 
 _gitlab_release_get() {
