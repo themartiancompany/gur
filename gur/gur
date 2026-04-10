@@ -2766,6 +2766,7 @@ _github_release_get() {
     _urls=() \
     _job_latest \
     _output_file \
+    _pattern \
     _token_private
   shift \
     2
@@ -2802,13 +2803,20 @@ _github_release_get() {
   #   release \
   #     view \
   #     "${_tag}"
+  _pattern="dogeos-${_target_platform}-*.pkg.*"
+  _msg=(
+    "Retrieving release artifacts"
+    "satisfying pattern '${_pattern}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
   gh \
     "${_gh_opts[@]}" \
     release \
       download \
       "${_tag}" \
       --pattern \
-        "dogeos-${_target_platform}-*.pkg.*"
+        "${_pattern}"
 }
 
 _gitlab_release_get() {
