@@ -2817,6 +2817,8 @@ _github_release_get() {
       "${_tag}" \
       --pattern \
         "${_pattern}"
+      --clobber
+  # write signature check
 }
 
 _gitlab_release_get() {
@@ -2997,6 +2999,10 @@ _tag_recipe_get() {
     _msg=() \
     _pkgbuild
   _pkgbuild="${PWD}/PKGBUILD"
+  # recipe-get \
+  #   -v \
+  #   "${_pkgbuild}" \
+  #   "pkgrel")
   _tag_recipe="$(
     echo \
       "$(recipe-get \
@@ -3015,6 +3021,12 @@ _tag_recipe_get() {
     _msg_error \
       "${_msg[*]}" \
       1
+  else
+    _msg=(
+      "Read tag '${_tag_recipe}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
   fi
 }
 
