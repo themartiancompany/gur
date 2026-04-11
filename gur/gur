@@ -47,6 +47,7 @@ _global_variables() {
   target_command=""
   target_key=""
   target_value=""
+  target_revision=""
   repo_type=""
   repo_name=""
   cache_dir=""
@@ -2815,9 +2816,9 @@ _github_release_get() {
     release \
       download \
       "${_tag}" \
+      --clobber \
       --pattern \
         "${_pattern}"
-      --clobber
   # write signature check
 }
 
@@ -4249,10 +4250,11 @@ _gur() {
     _repo_type="${5}" \
     _target_platform="${6}" \
     _target_arch="${7}" \
-    _repo_name="${8}" \
-    _target_command="${9}" \
-    _target_key="${10}" \
-    _target_value="${11}" \
+    _target_revision="${8}" \
+    _repo_name="${9}" \
+    _target_command="${10}" \
+    _target_key="${11}" \
+    _target_value="${12}" \
     _git_services=() \
     _target_namespaces=() \
     _repos=() \
@@ -4263,7 +4265,7 @@ _gur() {
     -A \
     "_bur_keys"
   shift \
-    11
+    12
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -4881,25 +4883,33 @@ Usage:
      -m <git-service>       Git service, can be 'github'
                             or 'gitlab'.
                             Default: ${git_services[*]}
-     -N <namespace>         Target namespace for the Ur
-                            repositories.
-                            Default: ${target_namespaces[*]}
-     -M <namespace-main>    Main namespace 
-                            TDefault: ${namespace_main}
      -t <repo-type>         Build and sync option.
                             It can be 'ur' (universal recipe)
                             or 'source' (the Git source repository
                             for an universal recipe).
                             Default: ${repo_type}
+
+  credentials options:
+     -N <namespace>         Target namespace for the Ur
+                            repositories.
+                            Default: ${target_namespaces[*]}
+     -M <namespace-main>    Main namespace 
+                            Default: ${namespace_main}
+
+  release options:
      -P <target-platform>   Target platform for the 'get release'
                             command.
                             Default: ${target_platform}
      -A <target-arch>       Target CPU architecture for the
                             'get release' command.
                             Default: ${target_arch}
-     -N <namespace>         Target namespace for the Ur
-                            repositories.
-                            Default: ${target_namespaces[*]}
+     -r <target-revision>   Target revision (version-release)
+                            to target when using the 'get release'
+                            command.
+                            Default: ${target_revision}
+
+
+  application options:
      -W <cache-dir>         Location where to temporary store
                             the downloaded resource chunks.
                             Default: ${cache_dir}
@@ -4955,7 +4965,7 @@ _config_user_init \
 # shellcheck disable=SC2034
 while \
   getopts \
-    'P:A:m:N:M:t:W:cvh?' \
+    'P:A:m:N:M:t:r:W:cvh?' \
     arg; do
   case \
     "${arg}" in
@@ -4975,6 +4985,8 @@ while \
       override_namespace_main="${OPTARG}" ;;
     t)
       override_repo_type="${OPTARG}" ;;
+    r)
+      override_target_revision="${OPTARG}" ;;
     W)
       override_cache_dir="${OPTARG}" ;;
     c)
@@ -4987,7 +4999,8 @@ while \
         0 ;;
     *)
     _msg=(
-      "Invalid argument '${arg}'.")
+      "Invalid argument '${arg}'."
+    )
     _msg_error \
       "${_msg[*]}" \
       0
@@ -5036,6 +5049,7 @@ app_opts=(
   "${repo_type}"
   "${target_platform}"
   "${target_arch}"
+  "${target_revision}"
   "${repo_name}"
   "${target_command}"
   "${target_key}"
