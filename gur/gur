@@ -3000,10 +3000,10 @@ _tag_recipe_get() {
     _msg=() \
     _pkgbuild
   _pkgbuild="${PWD}/PKGBUILD"
-  # recipe-get \
-  #   -v \
-  #   "${_pkgbuild}" \
-  #   "pkgrel")
+  recipe-get \
+    -v \
+    "${_pkgbuild}" \
+    "pkgrel"
   _tag_recipe="$(
     echo \
       "$(recipe-get \
@@ -3919,7 +3919,7 @@ _release_notes_new() {
     "[Msys2]("
     "  https://msys2.org)."
   )
-  _repo_http_url="https:${_git_service}.com/${_target_namespace}/${_repo_name}"
+  _repo_http_url="https://${_git_service}.com/${_target_namespace}/${_repo_name}-ur"
   _release_dir_url="${_repo_http_url}/releases/download/${_tag}"
   if [[ " ${_arches[*]} " == *" any "* ]]; then
     _tarname_android="dogeos-android-${_repo_name}-${_tag}-any.pkg.tar.xz"
