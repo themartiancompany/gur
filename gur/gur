@@ -298,7 +298,7 @@ _github_py_repos_get() {
   _lib="$(
     _get_lib)"
   _repos_get_bin="${_lib}/${app_name}/repos-get"
-  _token_private_get \
+  _token_private_file_get \
     "github.com" \
     "${_namespace}"
   _repos_get_opts+=(
@@ -394,27 +394,20 @@ _gitlab_repos_get() {
     _repos_urls=() \
     _lib \
     _msg=() \
-    _token \
-    _token_private
+    _token
   _repos_file="${_cache_dir}/${_namespace}/gitlab/repos.db"
-  _token_private_get \
-    "github.com" \
-    "${_namespace}"
   _api="https://gitlab.com/api/v4"
   _url="${_api}/namespaces"
   _token_private_get \
     "gitlab.com" \
     "${_namespace}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     --request
       "GET"
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
   )
   _namespaces="$(
     curl \
@@ -781,7 +774,7 @@ _gl_dl_token_set() {
     _git_service="${4}" \
     _token_private \
     _token
-  _token_private_get \
+  _token_private_file_get \
     "${_git_domain}" \
     "${_target_namespace}"
   _token="$(
@@ -1193,16 +1186,13 @@ _gitlab_namespaces_get() {
   _token_private_get \
     "gitlab.com" \
     "${_user}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     --request
       "GET"
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
   )
   _namespaces="$(
     curl \
@@ -1290,16 +1280,13 @@ _gitlab_repo_new() {
   _token_private_get \
     "gitlab.com" \
     "${_namespace}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     --request
       "POST"
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
     --header
       "Content-Type: application/json"
     --data
@@ -1434,16 +1421,13 @@ _groups_get() {
   _token_private_get \
     "gitlab.com" \
     "${_user}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     --request
       "GET"
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
   )
   _groups="$(
     curl \
@@ -1538,9 +1522,6 @@ _gitlab_quota_get() {
   _token_private_get \
     "gitlab.com" \
     "${_namespace_user}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _bearer="Authorization: Bearer $(
     cat \
       "${_token_private}")"
@@ -1548,7 +1529,7 @@ _gitlab_quota_get() {
     --silent
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
   )
   _namespace_id_get \
     "${_namespace_target}"
@@ -2154,14 +2135,11 @@ _gitlab_env_get() {
     _project_id_get \
       "${_namespace}" \
       "${_repo}")"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
   )
   _api="https://gitlab.com/api/v4"
   _url="${_api}/projects/${_project_id}/variables"
@@ -2307,14 +2285,11 @@ _gitlab_env_set() {
   _token_private_get \
     "gitlab.com" \
     "${_namespace}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
     --form
       key="${_key}"
     --form
@@ -2399,14 +2374,11 @@ _project_id_get() {
   _token_private_get \
     "gitlab.com" \
     "${_namespace}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
   )
   _project="$(
     curl \
@@ -2435,7 +2407,9 @@ _artifacts_get() {
     _job_latest \
     _old_pwd \
     _token_private
-  _token_private_get
+  _token_private_file_get \
+    "gitlab.com" \
+    "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
     _gl_dl_opts+=(
       -v
@@ -2521,11 +2495,13 @@ _gitlab_job_latest_get() {
   # _job_latest="${_jobs[0]}"
 }
 
-_token_private_get() {
+_token_private_file_get() {
   local \
     _domain \
+    _switched \
     _token_dir \
     _token_namespace \
+    _exit \
     _msg=()
   _domain="gitlab.com"
   if (( 0 < "${#}" )); then
@@ -2534,6 +2510,10 @@ _token_private_get() {
   _namespace="default"
   if (( 1 < "${#}" )); then
     _namespace="${2}"
+  fi
+  _exit="1"
+  if (( 2 < "${#}" )); then
+    _exit="${3}"
   fi
   _token_dir="${HOME}/.config/${_domain}"
   _token_private="${_token_dir}/default.txt"
@@ -2555,13 +2535,10 @@ _token_private_get() {
       "Missing private token at"
       "'${_token_private}'."
     )
+    _token_private=""
     _msg_error \
       "${_msg[*]}" \
-      1
-    if [[ "${_domain}" == "github.com" ]]; then
-
-      true
-    fi
+      "${_exit}"
   fi
 }
 
@@ -2571,7 +2548,7 @@ _gitlab_pipelines_get() {
     _gl_dl_opts=() \
     _msg=() \
     _token_private
-  _token_private_get \
+  _token_private_file_get \
     "gitlab.com" \
     "${_target_namespace}"
   if [[ "${quiet}" == "n" ]]; then
@@ -2623,12 +2600,98 @@ _github_releases_get() {
     "${_repo}"
 }
 
+_token_private_get() {
+  local \
+    _domain="${1}" \
+    _namespace="${2}"
+    _token_private
+  _token_private_file_get \
+    "${_domain}" \
+    "${_namespace}" \
+    "0"
+  if [[ "${_token_private}" != "" ]]; then
+    _token="$(
+      cat \
+        "${_token_private}")"
+  fi
+}
+
+_token_private_get_gh() {
+  local \
+    _namespace="${1}" \
+    _no_token_found_error=() \
+    _gh_opts=()
+  _no_token_found_error+=(
+    "no oauth token found for"
+    "github.com account ${_namespace}"
+  ) 
+  _gh_opts+=(
+    -u
+      "${_namespace}"
+  )
+  _token="$(
+    gh \
+      "${_gh_opts[@]}" \
+      auth \
+      token \
+      2>&1)"
+  if [[ "${_token}" == "${_no_token_found_error[*]}" ]]; then
+    _msg=(
+      "Found no token for namespace"
+      "'${_namespace}' on github.com."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
+  else
+    if [[ "${_token}" == "gho_"* ]]; then
+      return \
+        0
+    else
+      _msg=(
+        "Unknown error retrieving token"
+        "for namespace '${_namespace}'".
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        0
+      echo \
+        "${_token}" \
+        1>&2
+      exit \
+        1
+    fi
+  fi
+}
+
 _github_releases_get_curl() {
   local \
-    _token_private
-  _token_private_get \
+    _token_private \
+    _token \
+    _curl_opts=()
+  curl_opts+=(
+    -L
+    -H
+      "Accept: application/vnd.github+json"
+    -H
+      "X-GitHub-Api-Version: 2026-03-10"
+  )
+  _token_private_file_get \
     "github.com" \
-    "${_namespace}"
+    "${_namespace}" \
+    "0"
+  if [[ "${_token_private}" == "" ]]; then
+    _token_private_get_gh \
+      "${_namespace}"
+  else
+    _token="$(
+      cat \
+        "${_token_private}")"
+  fi
+  if [[ "" == "" ]]; then
+  fi
+  curl \
+
 }
 
 _github_account_switch() {
@@ -2884,7 +2947,7 @@ _gitlab_release_get() {
   if (( 0 < "$#" )); then
     _tag="${1}"
   fi
-  _token_private_get \
+  _token_private_file_get \
     "gitlab.com" \
     "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
@@ -2955,7 +3018,7 @@ _gitlab_releases_retrieve() {
     _api \
     _url \
     _token_private
-  _token_private_get \
+  _token_private_file_get \
     "gitlab.com" \
     "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
@@ -3468,7 +3531,7 @@ _gitlab_job_log_get() {
     _api \
     _url \
     _token_private
-  _token_private_get \
+  _token_private_file_get \
     "gitlab.com" \
     "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
@@ -3503,7 +3566,7 @@ _gitlab_jobs_get() {
     _gl_dl_opts=() \
     _msg=() \
     _token_private
-  _token_private_get \
+  _token_private_file_get \
     "gitlab.com" \
     "${_namespace}"
   if [[ "${quiet}" == "n" ]]; then
@@ -4459,7 +4522,8 @@ _github_accounts_get() {
           "hosts" |
       jq \
       --raw-output \
-        '.hosts."github.com".[].login' ||
+        '.hosts."github.com".[].login' \
+      2>&"/dev/null" ||
     true)"
   if [[ "${_namespaces}" == "null" ]]; then
     _namespaces=""
@@ -4566,26 +4630,19 @@ _gitlab_token_owner_get() {
     _msg=() \
     _token \
     _token_info \
-    _token_private \
     _url
   _token_private_get \
     "gitlab.com" \
     "${_namespace}"
   _api="https://gitlab.com/api/v4"
   _url="${_api}/personal_access_tokens/self"
-  _token_private_get \
-    "gitlab.com" \
-    "${_namespace}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     --request
       "GET"
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
   )
   _token_info="$(
     curl \
@@ -4627,7 +4684,6 @@ _gitlab_username_get() {
     _json \
     _msg=() \
     _token \
-    _token_private \
     _url \
     _username
   _token_private_get \
@@ -4635,19 +4691,13 @@ _gitlab_username_get() {
     "${_namespace}"
   _api="https://gitlab.com/api/v4"
   _url="${_api}/users/${_user_id}"
-  _token_private_get \
-    "gitlab.com" \
-    "${_namespace}"
-  _token="PRIVATE-TOKEN: $(
-    cat \
-      "${_token_private}")"
   _curl_opts+=(
     --silent
     --request
       "GET"
     -XGET
     --header
-      "${_token}"
+      "PRIVATE-TOKEN: ${_token}"
   )
   _account_info="$(
     curl \
