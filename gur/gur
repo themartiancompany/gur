@@ -2558,6 +2558,10 @@ _token_private_get() {
     _msg_error \
       "${_msg[*]}" \
       1
+    if [[ "${_domain}" == "github.com" ]]; then
+
+      true
+    fi
   fi
 }
 
@@ -2608,31 +2612,37 @@ _github_releases_get() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
-    _gh_opts=() \
+    _retrieval_method
+  if (( "${target_namespaces[@]}" < 1 )); then
+    _retrieval_method="curl"
+  else
+    _retrieval_method="gh"
+  fi
+  "_github_releases_get_${_retrieval_method}" \
+    "${_namespace}" \
+    "${_repo}"
+}
+
+_github_releases_get_curl() {
+  local \
+    _token_private
+  _token_private_get \
+    "github.com" \
+    "${_namespace}"
+}
+
+_github_account_switch() {
+  local \
+    _namespace="${1}" \
+    _switch_okay=() \
+    _switch_error=() \
     _not_logged_error=() \
-    _switch_okay \
-    _switch_error=()
+    _switched
   _switch_okay=(
     "✓ Switched active account"
     "for github.com to"
     "${_namespace}"
   )
-  _gh_opts+=(
-    --repo
-      "${_namespace}/${_repo}-ur"
-    --json
-      "tagName"
-    --jq
-      ".[].tagName"
-  )
-  _msg=(
-    "Checking existence of"
-    "repository '${_repo}'"
-    "on namespace '${_namespace}'"
-    "on Github.com"
-  )
-  _msg_info \
-    "${_msg[*]}"
   _switch_error=(
     "no accounts matched that criteria"
   )
@@ -2654,7 +2664,7 @@ _github_releases_get() {
     )
     _msg_info \
       "${_msg[*]}"
-    # _releases="false"
+    _switched="false"
   elif [[ "${_switch}" == "${_not_logged_error[*]}" ]]; then
     _msg=(
       "No account, in particular no"
@@ -2663,35 +2673,68 @@ _github_releases_get() {
     )
     _msg_info \
       "${_msg[*]}"
+    _switched="false"
   elif [[ "${_switch}" != "${_switch_error[*]}" && \
           "${_switch}" != "${_not_logged_error[*]}" ]]; then
     if [[ "${_switch}" == "" ]]; then
-      true
+      _switched="false"
     elif [[ "${_switch}" == "${_switch_okay[*]}" ]]; then
-      true
+      _switched="true"
     else
+      _switched="false"
+      _msg=(
+        "Unknown error while"
+        "switching account."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        0
       echo \
-        "${_switch}"
+        "${_switch}" \
+        1>&2
     fi
-    # gh \
-    # _exists="$(
-    #   gh \
-    #     repo \
-    #       view \
-    #         "${_namespace}/${_repo}" 2>"/dev/null" || \
-    #   true)" 
-  else
-    echo \
-      "${_switch}"
-    _msg=(
-      "Unknown error while"
-      "switching account."
-    )
-    _exists=""
-    _msg_error \
-      "${_msg[*]}" \
-      0
   fi
+}
+
+_github_releases_get_gh() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _gh_opts=() \
+    _not_logged_error=() \
+    _switch_okay \
+    _switch_error=()
+  _msg=(
+    "Getting releases for"
+    "repository '${_repo}'"
+    "on namespace '${_namespace}'"
+    "on Github.com"
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _github_account_switch \
+    "${_namespace}"
+  if [[ "${_switched}" == "false" ]]; then
+    _namespace_active="$(
+      _github_account_active_get)"
+    _msg=(
+      "It has not been possible"
+      "to switch to account for"
+      "namespace '${_namespace}',"
+      "retrieving releases list with the one"
+      "for '${_namespace_active}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
+  _gh_opts+=(
+    --repo
+      "${_namespace}/${_repo}-ur"
+    --json
+      "tagName"
+    --jq
+      ".[].tagName"
+  )
   _releases=( $(
     gh \
       "${_gh_opts[@]}" \
