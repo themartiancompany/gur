@@ -50,6 +50,7 @@ _global_variables() {
   target_revision=""
   repo_type=""
   repo_name=""
+  retrieval_method=""
   cache_dir=""
   http="https://github.com"
   mirror_description=(
@@ -101,17 +102,6 @@ _global_variables() {
 }
 
 _requirements() {
-  local \
-    _gh \
-    _os
-  _os="$(
-    uname \
-      -o)"
-  if [[ "${_os}" == "Android" ]]; then
-    _gh="gh"
-  else
-    _gh="github-cli"
-  fi
   _check_cmd \
     "cat" \
     "coreutils"
@@ -120,9 +110,6 @@ _requirements() {
   _check_cmd \
     "evm-gpg" \
     "evm-gnupg"
-  _check_cmd \
-    'gh' \
-    "${_gh}"
   _check_cmd \
     'gl-dl'
   _check_cmd \
@@ -2590,7 +2577,7 @@ _github_releases_get() {
     _namespace="${1}" \
     _repo="${2}" \
     _retrieval_method
-  if (( "${target_namespaces[@]}" < 1 )); then
+  if (( "${#target_namespaces[@]}" < 1 )); then
     _retrieval_method="curl"
   else
     _retrieval_method="gh"
@@ -2604,7 +2591,12 @@ _token_private_get() {
   local \
     _domain="${1}" \
     _namespace="${2}"
+    _exit \
     _token_private
+  _exit=1
+  if (( 2 < "${#}" )); then
+    _exit="${3}"
+  fi
   _token_private_file_get \
     "${_domain}" \
     "${_namespace}" \
@@ -2613,14 +2605,33 @@ _token_private_get() {
     _token="$(
       cat \
         "${_token_private}")"
+  else
+    if [[ "${_domain}" == "github.com" ]]; then
+      _token_private_get_gh \
+        "${_namespace}"
+    fi
+  fi
+  if [[ "${_token}" == "" ]]; then
+    _msg=(
+      "Can't find any token"
+      "for namespace '${_namespace}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      "${_exit}"
   fi
 }
 
 _token_private_get_gh() {
   local \
     _namespace="${1}" \
+    _exit \
     _no_token_found_error=() \
     _gh_opts=()
+  _exit="1"
+  if (( 1 < "${#}" )); then
+    _exit="${2}"
+  fi
   _no_token_found_error+=(
     "no oauth token found for"
     "github.com account ${_namespace}"
@@ -2643,6 +2654,7 @@ _token_private_get_gh() {
     _msg_error \
       "${_msg[*]}" \
       0
+    _token=""
   else
     if [[ "${_token}" == "gho_"* ]]; then
       return \
@@ -2658,17 +2670,20 @@ _token_private_get_gh() {
       echo \
         "${_token}" \
         1>&2
-      exit \
-        1
+      return \
+        "${_exit}"
     fi
   fi
 }
 
 _github_releases_get_curl() {
   local \
+    _namespace="${1}" \
+    _repo="${2}" \
     _token_private \
     _token \
     _curl_opts=()
+  _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
   curl_opts+=(
     -L
     -H
@@ -2676,22 +2691,27 @@ _github_releases_get_curl() {
     -H
       "X-GitHub-Api-Version: 2026-03-10"
   )
-  _token_private_file_get \
+  _token_private_get \
     "github.com" \
     "${_namespace}" \
     "0"
-  if [[ "${_token_private}" == "" ]]; then
-    _token_private_get_gh \
-      "${_namespace}"
-  else
-    _token="$(
-      cat \
-        "${_token_private}")"
-  fi
-  if [[ "" == "" ]]; then
+  if [[ "${_token}" != "" ]]; then
+    _gh_opts+=(
+      -H
+        "Authorization: Bearer ${_token}"
+    )
   fi
   curl \
-
+    "${_curl_opts[@]}" \
+    "${_url}" > \
+    "${_cache_dir}/releases.json"
+  cat \
+    "${_cache_dir}/releases.json" |
+    jq \
+      --raw-output \
+      ".[].tag_name" |
+      sort \
+        -V
 }
 
 _github_account_switch() {
@@ -2699,8 +2719,7 @@ _github_account_switch() {
     _namespace="${1}" \
     _switch_okay=() \
     _switch_error=() \
-    _not_logged_error=() \
-    _switched
+    _not_logged_error=()
   _switch_okay=(
     "✓ Switched active account"
     "for github.com to"
@@ -2764,9 +2783,7 @@ _github_releases_get_gh() {
     _namespace="${1}" \
     _repo="${2}" \
     _gh_opts=() \
-    _not_logged_error=() \
-    _switch_okay \
-    _switch_error=()
+    _switched
   _msg=(
     "Getting releases for"
     "repository '${_repo}'"
@@ -4347,6 +4364,25 @@ _gur_check() {
   fi
 }
 
+_retrieval_method_requirements() {
+  local \
+    _gh \
+    _os
+  if [[ "${_retrieval_method}" == "gh" ]]; then
+    _os="$(
+      uname \
+        -o)"
+    if [[ "${_os}" == "Android" ]]; then
+      _gh="gh"
+    else
+      _gh="github-cli"
+    fi
+    _check_cmd \
+      'gh' \
+      "${_gh}"
+  fi
+}
+
 _gur() {
   local \
     _git_services_amount="${1}" \
@@ -4354,13 +4390,14 @@ _gur() {
     _namespace_main="${3}" \
     _cache_dir="${4}" \
     _repo_type="${5}" \
-    _target_platform="${6}" \
-    _target_arch="${7}" \
-    _target_revision="${8}" \
-    _repo_name="${9}" \
-    _target_command="${10}" \
-    _target_key="${11}" \
-    _target_value="${12}" \
+    _retrieval_method="${6}" \
+    _target_platform="${7}" \
+    _target_arch="${8}" \
+    _target_revision="${9}" \
+    _repo_name="${10}" \
+    _target_command="${11}" \
+    _target_key="${12}" \
+    _target_value="${13}" \
     _git_services=() \
     _target_namespaces=() \
     _repos=() \
@@ -4371,7 +4408,7 @@ _gur() {
     -A \
     "_bur_keys"
   shift \
-    12
+    13
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -4394,6 +4431,7 @@ _gur() {
   _command_args+=(
     "$@"
   )
+  _retrieval_method_requirements
   if [[ "${_target_command}" == "get" ]]; then
     _gur_get \
       "${_target_namespace}" \
@@ -4867,6 +4905,19 @@ _repo_info_auto_detect() {
     "${_repo_name}"
 }
 
+_retrieval_method_auto_detect() {
+  local \
+    _retrieval_method
+  _retrieval_method="curl"
+  if (( 0 < "${#target_namespaces[@]}" )); then
+    _retrieval_method="gh"
+  fi
+  _set_override \
+    "retrieval" \
+    "method" \
+    "${_retrieval_method}"
+}
+
 _set_overrides() {
   local \
     _display_help
@@ -4900,6 +4951,7 @@ _set_overrides() {
   _cache_dir_auto_detect
   target_namespaces_amount="${#target_namespaces[@]}"
   _repo_info_auto_detect
+  _retrieval_method_auto_detect
   _set_override \
     "target" \
     "arch" \
@@ -5003,6 +5055,11 @@ Usage:
 
 
   application options:
+     -d <retrieval-method>  Retrieval method for the Github.
+                            Can be 'gh' or 'curl'. If no local
+                            accounts are detected defaults to
+                            curl.
+                            Default: ${retrieval_method}
      -W <cache-dir>         Location where to temporary store
                             the downloaded resource chunks.
                             Default: ${cache_dir}
@@ -5045,6 +5102,7 @@ _show_config() {
   _msg_info "                   Target value:   ${target_value}"
   _msg_info "                Extra arguments:   ${command_args[*]}"
   _msg_info "              Release options:"
+  _msg_info "               Retrieval method:   ${retrieval_method}"
   _msg_info "                Target platform:   ${target_platform}"
   _msg_info "            Target architecture:   ${target_arch}"
   _msg_info "          Application options:"
@@ -5058,7 +5116,7 @@ _config_user_init \
 # shellcheck disable=SC2034
 while \
   getopts \
-    'P:A:m:N:M:t:r:W:cvh?' \
+    'P:A:m:N:M:t:r:d:W:cvh?' \
     arg; do
   case \
     "${arg}" in
@@ -5080,6 +5138,8 @@ while \
       override_repo_type="${OPTARG}" ;;
     r)
       override_target_revision="${OPTARG}" ;;
+    d)
+      override_retrieval_method="${OPTARG}" ;;
     W)
       override_cache_dir="${OPTARG}" ;;
     c)
@@ -5140,6 +5200,7 @@ app_opts=(
   "${namespace_main}"
   "${cache_dir}"
   "${repo_type}"
+  "${retrieval_method}"
   "${target_platform}"
   "${target_arch}"
   "${target_revision}"
