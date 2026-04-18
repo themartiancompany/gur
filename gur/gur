@@ -2712,6 +2712,10 @@ _github_release_assets_names_get() {
         "Authorization: Bearer ${_token}"
     )
   fi
+  mkdir \
+    -p \
+    "$(dirname \
+         "${_releases_file}")"
   curl \
     "${_curl_opts[@]}" \
     "${_url}" > \
