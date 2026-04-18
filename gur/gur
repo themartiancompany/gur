@@ -2692,7 +2692,7 @@ _github_release_assets_names_get() {
     _token_private \
     _token \
     _curl_opts=()
-  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/github/releases.json"
   _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
   curl_opts+=(
@@ -2745,7 +2745,7 @@ _github_releases_retrieve_curl() {
     _token_private \
     _token \
     _curl_opts=()
-  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/github/releases.json"
   _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
   curl_opts+=(
@@ -3098,7 +3098,7 @@ _releases_get() {
   if (( 2 < "${#}" )); then
     _service="${3}"
   fi
-  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/${_service}/releases.json"
   "_${_service}_releases_retrieve" \
     "${_namespace}" \
@@ -3125,7 +3125,7 @@ _gitlab_releases_retrieve() {
     _api \
     _url \
     _token_private
-  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/gitlab/releases.json"
   _token_private_file_get \
     "gitlab.com" \
