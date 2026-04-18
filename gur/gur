@@ -95,6 +95,7 @@ _global_variables() {
     "quota"
     "releases"
     "release"
+    "assets_names"
     "status"
   )
   color=""
@@ -2572,25 +2573,10 @@ _gitlab_pipelines_get() {
     "${_cache_dir}/jobs.json"
 }
 
-_github_releases_get() {
-  local \
-    _namespace="${1}" \
-    _repo="${2}" \
-    _retrieval_method
-  if (( "${#target_namespaces[@]}" < 1 )); then
-    _retrieval_method="curl"
-  else
-    _retrieval_method="gh"
-  fi
-  "_github_releases_get_${_retrieval_method}" \
-    "${_namespace}" \
-    "${_repo}"
-}
-
 _token_private_get() {
   local \
     _domain="${1}" \
-    _namespace="${2}"
+    _namespace="${2}" \
     _exit \
     _token_private
   _exit=1
@@ -2676,13 +2662,38 @@ _token_private_get_gh() {
   fi
 }
 
-_github_releases_get_curl() {
+_release_assets_names_get() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
+    _tag="${3}" \
+    _service
+  _service="gitlab"
+  if (( 3 < "${#}" )); then
+    _service="${4}"
+  fi
+  "_${_service}_release_assets_names_get" \
+    "${_namespace}" \
+    "${_repo}" \
+    "${_tag}"
+}
+
+_gitlab_release_assets_names_get() {
+  true
+}
+
+_github_release_assets_names_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _tag="${3}" \
+    _pkg_dir \
+    _releases_file \
     _token_private \
     _token \
     _curl_opts=()
+  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _releases_file="${_pkg_dir}/github/releases.json"
   _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
   curl_opts+=(
     -L
@@ -2704,15 +2715,62 @@ _github_releases_get_curl() {
   curl \
     "${_curl_opts[@]}" \
     "${_url}" > \
-    "${_cache_dir}/releases.json"
+    "${_releases_file}"
   cat \
-    "${_cache_dir}/releases.json" |
+    "${_releases_file}" |
     jq \
       --raw-output \
-      ".[].tag_name" |
-      sort \
-        -V
+      '.[] | select(.tag_name == "'${_tag}'").assets.[].name'
 }
+
+_github_releases_retrieve() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}"
+  "_github_releases_retrieve_${_retrieval_method}" \
+    "${_namespace}" \
+    "${_repo}"
+}
+
+_github_releases_retrieve_curl() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _pkg_dir \
+    _releases_file \
+    _token_private \
+    _token \
+    _curl_opts=()
+  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _releases_file="${_pkg_dir}/github/releases.json"
+  _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
+  curl_opts+=(
+    -L
+    -H
+      "Accept: application/vnd.github+json"
+    -H
+      "X-GitHub-Api-Version: 2026-03-10"
+  )
+  _token_private_get \
+    "github.com" \
+    "${_namespace}" \
+    "0"
+  if [[ "${_token}" != "" ]]; then
+    _gh_opts+=(
+      -H
+        "Authorization: Bearer ${_token}"
+    )
+  fi
+  mkdir \
+    -p \
+    "$(dirname \
+      "${_releases_file}")"
+  curl \
+    "${_curl_opts[@]}" \
+    "${_url}" > \
+    "${_releases_file}"
+}
+
 
 _github_account_switch() {
   local \
@@ -2778,7 +2836,7 @@ _github_account_switch() {
   fi
 }
 
-_github_releases_get_gh() {
+_github_releases_retrieve_gh() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
@@ -2825,22 +2883,38 @@ _github_releases_get_gh() {
   )
 }
 
-_gitlab_releases_get() {
-  _releases=( $(
-    cat \
-      "${_cache_dir}/releases.json" |
-      jq \
-        --raw-output \
-        '.[].tag_name' |
-        sort \
-          -V)
+_release_latest_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _pkg_dir \
+    _releases_file \
+    _retrieve \
+    _service
+  _service="gitlab"
+  if (( 2 < "${#}" )); then
+    _service="${3}"
+  fi
+  _retrieve="true"
+  if (( 3 < "${#}" )); then
+    _retrieve="${4}"
+  fi
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
+  _releases_file="${_pkg_dir}/${_service}/releases.json"
+  _msg=(
+    "Detecting latest release for"
+    "package '${_repo}' on namespace '${_namespace}'."
   )
-}
-
-_gitlab_release_latest_get() {
+  _msg_info \
+    "${_msg[*]}"
+  if [[ "${_retrieve}" == "true" ]]; then
+    "_${_service}_releases_retrieve_${_retrieval_method}" \
+      "${_namespace}" \
+      "${_repo}"
+  fi
   _tag="$(
     cat \
-      "${_cache_dir}/releases.json" |
+      "${_releases_file}" |
       jq \
         --raw-output \
         '.[].tag_name' |
@@ -2856,7 +2930,7 @@ _status_get() {
     _namespace="${1}" \
     _repo="${2}" \
     _releases=()
-  _gitlab_releases_get \
+  _releases_get \
     "${_namespace}" \
     "${_repo}"
   printf \
@@ -2903,9 +2977,10 @@ _github_release_get() {
       "${_namespace}/${_repo}-ur"
   )
   if [[ "${_tag}" == "" ]]; then
-    _github_releases_get \
+    _releases_get \
       "${_namespace}" \
-      "${_repo}"
+      "${_repo}" \
+      "gitlab"
     if (( "${#_releases[@]}" < 1 )); then
       _msg=(
         "Error retrieving releases list."
@@ -2982,7 +3057,11 @@ _gitlab_release_get() {
     "${_namespace}" \
     "${_repo}"
   if [[ "${_tag}" == "" ]]; then
-    _gitlab_release_latest_get
+    _release_latest_get \
+      "${_namespace}" \
+      "${_repo}" \
+      "gitlab" \
+      "false"
   fi
   _urls+=( $(
     cat \
@@ -3008,22 +3087,27 @@ _releases_get() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
-    _git_service
-  _git_service="gitlab"
+    _service \
+    _pkg_dir \
+    _releases_file
+  _service="gitlab"
   if (( 2 < "${#}" )); then
-    _git_service="${3}"
+    _service="${3}"
   fi
-  if [[ "${_git_service}" == "gitlab" ]]; then
-    "_${_git_service}_releases_retrieve" \
-      "${_namespace}" \
-      "${_repo}"
-  fi
-  "_${_git_service}_releases_get" \
+  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _releases_file="${_pkg_dir}/${_service}/releases.json"
+  "_${_service}_releases_retrieve" \
     "${_namespace}" \
     "${_repo}"
-  # cat \
-  #   "${_cache_dir}/releases.json" |
-  # jq
+  _releases=( $(
+    cat \
+      "${_releases_file}" |
+      jq \
+        --raw-output \
+        '.[].tag_name' |
+        sort \
+          -V)
+  )
 }
 
 _gitlab_releases_retrieve() {
@@ -3031,10 +3115,14 @@ _gitlab_releases_retrieve() {
     _namespace="${1}" \
     _repo="${2}" \
     _project_id \
+    _pkg_dir \
+    _releases_file \
     _gl_dl_opts=() \
     _api \
     _url \
     _token_private
+  _pkg_dir="${_cache_dir}/packages/${_target_repo}/${_namespace}"
+  _releases_file="${_pkg_dir}/gitlab/releases.json"
   _token_private_file_get \
     "gitlab.com" \
     "${_namespace}"
@@ -3055,8 +3143,12 @@ _gitlab_releases_retrieve() {
     -C
       "${_token_private}"
     -o
-      "${_cache_dir}/releases.json"
+      "${_releases_file}"
   )
+  mkdir \
+    -p \
+    "$(dirname \
+      "${_releases_file}")"
   gl-dl \
     "${_gl_dl_opts[@]}" \
     "${_url}"
@@ -3630,6 +3722,8 @@ _gur_get() {
     _target_repo \
     _namespace_user \
     _namespace_target \
+    _tag \
+    _assets_names=() \
     _releases=() \
     _msg=()
   shift \
@@ -3670,13 +3764,44 @@ _gur_get() {
     done
   fi
   if [[ "${_target_key}" == "releases" ]]; then
-    _namespace_user="${_target_namespace}"
-    _namespace_target="${_target_value}"
+    _target_repo="${_target_value}-ur"
     for _service in "${_git_services[@]}"; do
-      _releases=()
       _releases_get \
         "${_target_namespace}" \
-        "${_target_value}" \
+        "${_target_repo}" \
+        "${_service}"
+      printf \
+        '%s\n' \
+        "${_releases[@]}"
+    done
+  fi
+  if [[ "${_target_key}" == "assets_names" ]]; then
+    _target_repo="${_target_value}-ur"
+    for _service in "${_git_services[@]}"; do
+      if (( "${#_args_extra[@]}" < 1 )); then
+        _msg=(
+          "Target release not specified,"
+          "getting asset names for latest."
+        )
+        _msg_info \
+          "${_msg[*]}"
+        _release_latest_get \
+          "${_target_namespace}" \
+          "${_target_repo}" \
+          "${_service}" \
+          "true"
+        _msg=(
+          "Latest tag is '${_tag}'."
+        )
+        _msg_info \
+          "${_msg[*]}"
+      else
+        _tag="${_args_extra[0]}"
+      fi
+      _release_assets_names_get \
+        "${_target_namespace}" \
+        "${_target_repo}" \
+        "${_tag}" \
         "${_service}"
       printf \
         '%s\n' \
@@ -3715,7 +3840,9 @@ _gur_get() {
         "${_target_key}" != "quota" && \
         "${_target_key}" != "log" && \
         "${_target_key}" != "release" && \
-        "${_target_key}" != "releases" ]]; then
+        "${_target_key}" != "releases" && \
+        "${_target_key}" != "assets_names" \
+     ]]; then
     if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
       _target_field="${_target_key}"
       _target_repo="${_target_value}"
