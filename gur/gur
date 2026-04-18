@@ -5034,10 +5034,14 @@ _repo_info_auto_detect() {
 
 _retrieval_method_auto_detect() {
   local \
+    _hosts \
     _retrieval_method
   _retrieval_method="curl"
+  _hosts="${HOME}/.config/gh/hosts.yml"
   if (( 0 < "${#target_namespaces[@]}" )); then
-    _retrieval_method="gh"
+    if [[ -e "${_hosts}" ]]; then
+      _retrieval_method="gh"
+    fi
   fi
   _set_override \
     "retrieval" \
