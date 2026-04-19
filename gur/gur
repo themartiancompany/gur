@@ -2720,11 +2720,13 @@ _github_release_assets_names_get() {
     "${_curl_opts[@]}" \
     "${_url}" > \
     "${_releases_file}"
-  cat \
-    "${_releases_file}" |
-    jq \
-      --raw-output \
-      '.[] | select(.tag_name == "'${_tag}'").assets.[].name'
+  _assets_names=( $(
+    cat \
+      "${_releases_file}" |
+      jq \
+        --raw-output \
+        '.[] | select(.tag_name == "'${_tag}'").assets.[].name')
+  )
 }
 
 _github_releases_retrieve() {
@@ -3809,7 +3811,7 @@ _gur_get() {
         "${_service}"
       printf \
         '%s\n' \
-        "${_releases[@]}"
+        "${_assets_names[@]}"
     done
   fi
   if [[ "${_target_key}" == "quota" ]]; then
