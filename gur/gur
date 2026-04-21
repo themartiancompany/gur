@@ -1,25 +1,30 @@
 #!/usr/bin/env bash
 
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0
 
-#    ----------------------------------------------------------------------
+#    -----------------------------------------------------
 #    Copyright © 2024, 2025, 2026  Pellegrino Prevete
 #
 #    All rights reserved
-#    ----------------------------------------------------------------------
+#    -----------------------------------------------------
 #
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
+#    This program is free software: you can redistribute
+#    it and/or modify it under the terms of the
+#    GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of
+#    the License, or (at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
+#    This program is distributed in the hope that it
+#    will be useful, but WITHOUT ANY WARRANTY;
+#    without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#    See the GNU Affero General Public License for
+#    more details.
 #
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#    You should have received a copy of the
+#    GNU Affero General Public License
+#    along with this program.
+#    If not, see <https://www.gnu.org/licenses/>.
 
 _bin="$(
   dirname \
@@ -2762,11 +2767,16 @@ _github_release_asset_sum_get() {
     _repo="${2}" \
     _tag="${3}" \
     _asset_name="${4}" \
+    _service \
     _pkg_dir \
     _releases_file \
     _token_private \
     _token \
     _curl_opts=()
+  _service="gitlab"
+  if (( 4 < "${#}" )); then
+    _service="${5}"
+  fi
   _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/github/releases.json"
   "_github_releases_retrieve_${_retrieval_method}" \
@@ -2777,8 +2787,12 @@ _github_release_asset_sum_get() {
       "${_releases_file}" |
       jq \
         --raw-output \
-        '.[] | select(.tag_name == "'${_tag}'").assets.[] | select(.name == "'${_asset_name}'").digest')
+        '.[] | select(.tag_name == "'${_tag}'").assets.[] | select(.name == "'${_asset_name}'").digest' |
+        sed \
+          "s/^sha256://g")
   )
+  echo \
+    "${_sums[@]}"
 }
 
 _release_asset_sum_get() {
@@ -3898,15 +3912,42 @@ _gur_get() {
         "${_service}"
       if (( "${#_args_extra[@]}" < 2 )); then
         _msg=(
-          "hurr"
+          "No asset name provided."
+          "Assets for the release:\n"
+          "$(printf \
+               "%s\n" \
+               "${_assets_names[@]}")"
         )
+        _msg_error \
+          "${_msg[*]}" \
+          1
+      else
+        _asset="${_args_extra[1]}"
       fi
-      printf \
-        '%s\n' \
-        "${_assets_names[@]}"
+      if [[ "${_assets_names[*]} " != *" ${_asset} "* ]]; then
+        _msg=(
+          "Target asset '${_asset}'"
+          "not found."
+          "Assets for the release:\n"
+          "$(printf \
+               "%s\n" \
+               "${_assets_names[@]}")"
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          1
+      fi
+      "_release_asset_sum_get" \
+        "${_target_namespace}" \
+        "${_target_repo}" \
+        "${_tag}" \
+        "${_asset}" \
+        "${_service}"
+      # printf \
+      #   '%s\n' \
+      #   "${_asset_sum}"
     done
   fi
-
   if [[ "${_target_key}" == "assets_names" ]]; then
     _target_repo="${_target_value}-ur"
     for _service in "${_git_services[@]}"; do
@@ -3973,7 +4014,8 @@ _gur_get() {
         "${_target_key}" != "log" && \
         "${_target_key}" != "release" && \
         "${_target_key}" != "releases" && \
-        "${_target_key}" != "assets_names" \
+        "${_target_key}" != "assets_names" && \
+        "${_target_key}" != "sum" \
      ]]; then
     if [[ " ${mirror_fields[*]} " == *" ${_target_key} "* ]]; then
       _target_field="${_target_key}"
