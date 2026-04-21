@@ -96,6 +96,7 @@ _global_variables() {
     "releases"
     "release"
     "assets_names"
+    "sum"
     "status"
   )
   color=""
@@ -2678,10 +2679,6 @@ _release_assets_names_get() {
     "${_tag}"
 }
 
-_gitlab_release_assets_names_get() {
-  true
-}
-
 _github_release_assets_names_get() {
   local \
     _namespace="${1}" \
@@ -2727,6 +2724,96 @@ _github_release_assets_names_get() {
         --raw-output \
         '.[] | select(.tag_name == "'${_tag}'").assets.[].name')
   )
+}
+
+
+
+_gitlab_release_assets_names_get() {
+  true
+}
+
+_github_release_assets_names_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _tag="${3}" \
+    _pkg_dir \
+    _releases_file \
+    _token_private \
+    _token \
+    _curl_opts=()
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
+  _releases_file="${_pkg_dir}/github/releases.json"
+  "_github_releases_retrieve_${_retrieval_method}" \
+    "${_namespace}" \
+    "${_repo}"
+  _assets_names=( $(
+    cat \
+      "${_releases_file}" |
+      jq \
+        --raw-output \
+        '.[] | select(.tag_name == "'${_tag}'").assets.[].name')
+  )
+}
+
+_github_release_asset_sum_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _tag="${3}" \
+    _asset_name="${4}" \
+    _pkg_dir \
+    _releases_file \
+    _token_private \
+    _token \
+    _curl_opts=()
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
+  _releases_file="${_pkg_dir}/github/releases.json"
+  "_github_releases_retrieve_${_retrieval_method}" \
+    "${_namespace}" \
+    "${_repo}"
+  _sums=( $(
+    cat \
+      "${_releases_file}" |
+      jq \
+        --raw-output \
+        '.[] | select(.tag_name == "'${_tag}'").assets.[] | select(.name == "'${_asset_name}'").digest')
+  )
+}
+
+_release_asset_sum_get() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _tag="${3}" \
+    _asset_name="${4}" \
+    _service \
+    _pkg_dir \
+    _releases_file \
+    _token_private \
+    _token \
+    _curl_opts=()
+  _service="gitlab"
+  if (( 4 < "${#}" )); then
+    _service="${5}"
+  fi
+  "_${_service}_release_asset_sum_get" \
+    "${_namespace}" \
+    "${_repo}" \
+    "${_tag}" \
+    "${_asset_name}"
+  # _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
+  # _releases_file="${_pkg_dir}/github/releases.json"
+  # "_${_service}_releases_retrieve_${_retrieval_method}" \
+  #   "${_namespace}" \
+  #   "${_repo}"
+  # _sums=( $(
+  #   cat \
+  #     "${_releases_file}" |
+  #     jq \
+  #       --raw-output \
+  #       '.[] | select(.tag_name == "'${_tag}'").assets.[] | select(.name == "'${_asset_name}'").digest')
+  # )
 }
 
 _github_releases_retrieve() {
@@ -3781,6 +3868,45 @@ _gur_get() {
         "${_releases[@]}"
     done
   fi
+  if [[ "${_target_key}" == "sum" ]]; then
+    _target_repo="${_target_value}-ur"
+    for _service in "${_git_services[@]}"; do
+      if (( "${#_args_extra[@]}" < 1 )); then
+        _msg=(
+          "Target release not specified,"
+          "getting asset names for latest."
+        )
+        _msg_info \
+          "${_msg[*]}"
+        _release_latest_get \
+          "${_target_namespace}" \
+          "${_target_repo}" \
+          "${_service}" \
+          "true"
+        _msg=(
+          "Latest tag is '${_tag}'."
+        )
+        _msg_info \
+          "${_msg[*]}"
+      else
+        _tag="${_args_extra[0]}"
+      fi
+      _release_assets_names_get \
+        "${_target_namespace}" \
+        "${_target_repo}" \
+        "${_tag}" \
+        "${_service}"
+      if (( "${#_args_extra[@]}" < 2 )); then
+        _msg=(
+          "hurr"
+        )
+      fi
+      printf \
+        '%s\n' \
+        "${_assets_names[@]}"
+    done
+  fi
+
   if [[ "${_target_key}" == "assets_names" ]]; then
     _target_repo="${_target_value}-ur"
     for _service in "${_git_services[@]}"; do
@@ -5148,9 +5274,11 @@ Usage:
     project_id              Project ID for a Gitlab repository.
     artifacts               Latest artifact for an Ur Gitlab mirror.
     log                     Latest log for an Ur Gitlab mirror.
-    releases                Get releases for an Ur Gitlab mirror.
+    releases                Get releases names for an Ur Git* mirror.
     release                 Downloads a binary release built
-                            on Ur Gitlab mirror.
+                            on Ur Git* mirror.
+    assets_names            Returns the assets names for a release.
+    sum                     Returns the checksum for an asset name
 
   common args:
     package_name            An Ur package name (mirrors
@@ -5160,6 +5288,20 @@ Usage:
   release args:
     tag                     A specific release tag to download.
                             If not provided gets the latest.
+
+   assets_names args:
+    tag                     The release for which to return
+                            the asset names.
+                            If not provided gets the assets
+                            for the latest.
+
+   sum args:
+    tag                     The release for which to return
+                            the asset names.
+                            If not provided gets the assets
+                            for the latest.
+    file                    The release asset name for which
+                            to return the checksum.
 
   options:
      -m <git-service>       Git service, can be 'github'
