@@ -3200,8 +3200,7 @@ _github_release_get_curl() {
   _release_assets_names_get \
     "${_namespace}" \
     "${_repo}-ur" \
-    "${_tag}" \
-    "${_service}"
+    "${_tag}"
   _repo_http_url="https://${_service}.com/${_namespace}/${_repo}-ur"
   _release_dir_url="${_repo_http_url}/releases/download/${_tag}"
   for _asset in "${_assets_names[@]}"; do
