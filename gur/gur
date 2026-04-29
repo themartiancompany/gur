@@ -2531,9 +2531,15 @@ _token_private_file_get() {
       "'${_token_private}'."
     )
     _token_private=""
+    _msg=(
+      "Exit code: ${_exit}"
+    )
+    _msg_info \
+      "${_msg[*]}"
     _msg_error \
       "${_msg[*]}" \
       "${_exit}"
+    true
   fi
   true
 }
