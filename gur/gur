@@ -2648,9 +2648,13 @@ _token_private_get_gh() {
       "Found no token for namespace"
       "'${_namespace}' on github.com."
     )
-    _msg_error \
-      "${_msg[*]}" \
-      0
+    if [[ "${_exit}" == "0" ]]; then
+      _msg_info \
+        "${_msg[*]}"
+    elif [[ "${_exit}" == "1" ]]; then
+      _msg_error \
+        "${_msg[*]}" \
+        1
     _token=""
   else
     if [[ "${_token}" == "gho_"* ]]; then
