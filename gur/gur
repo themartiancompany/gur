@@ -294,7 +294,8 @@ _github_py_repos_get() {
   _repos_get_bin="${_lib}/${app_name}/repos-get"
   _token_private_file_get \
     "github.com" \
-    "${_namespace}"
+    "${_namespace}" \
+    0
   _repos_get_opts+=(
     --key
       "${_token_private}"
@@ -2534,6 +2535,7 @@ _token_private_file_get() {
       "${_msg[*]}" \
       "${_exit}"
   fi
+  true
 }
 
 _gitlab_pipelines_get() {
