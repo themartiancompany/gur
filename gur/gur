@@ -2705,7 +2705,15 @@ _github_release_assets_names_get() {
     _releases_file \
     _token_private \
     _token \
-    _curl_opts=()
+    _curl_opts=() \
+    _msg=()
+  _msg=(
+    "Retrieving release '${_tag}'"
+    "assets names list for repository"
+    "'${_repo}' on namespace '${_namespace}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
   _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/github/releases.json"
   _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
