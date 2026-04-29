@@ -2686,7 +2686,7 @@ _release_assets_names_get() {
     _repo="${2}" \
     _tag="${3}" \
     _service
-  _service="gitlab"
+  _service="github"
   if (( 3 < "${#}" )); then
     _service="${4}"
   fi
@@ -3208,7 +3208,7 @@ _github_release_get_curl() {
     _releases_get \
       "${_namespace}" \
       "${_repo}-ur" \
-      "github"
+      "${_service}"
     if (( "${#_releases[@]}" < 1 )); then
       _msg=(
         "Error retrieving releases list."
@@ -3228,7 +3228,8 @@ _github_release_get_curl() {
   _release_assets_names_get \
     "${_namespace}" \
     "${_repo}-ur" \
-    "${_tag}"
+    "${_tag}" \
+    "${_service}"
   _repo_http_url="https://${_service}.com/${_namespace}/${_repo}-ur"
   _release_dir_url="${_repo_http_url}/releases/download/${_tag}"
   for _asset in "${_assets_names[@]}"; do
