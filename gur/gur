@@ -3207,7 +3207,7 @@ _github_release_get_curl() {
       "${_msg[*]}"
     _releases_get \
       "${_namespace}" \
-      "${_repo}" \
+      "${_repo}-ur" \
       "github"
     if (( "${#_releases[@]}" < 1 )); then
       _msg=(
