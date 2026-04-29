@@ -2655,6 +2655,7 @@ _token_private_get_gh() {
       _msg_error \
         "${_msg[*]}" \
         1
+    fi
     _token=""
   else
     if [[ "${_token}" == "gho_"* ]]; then
