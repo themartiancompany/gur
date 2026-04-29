@@ -3061,17 +3061,26 @@ _release_get() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
-    _git_service
+    _git_service \
+    _cmd=()
   _git_service="gitlab"
   if (( 2 < "${#}" )); then
     _git_service="${3}"
   fi
-  "_${_git_service}_release_get" \
+  _cmd+=(
+    "_${_git_service}_release_get"
+  )
+  if [[ "${_git_service}" == "github" ]]; then
+    _cmd=(
+      "_${_git_service}_release_get_${_retrieval_method}"
+    )
+  fi
+  "${_cmd[*]}" \
     "${_namespace}" \
     "${_repo}"
 }
 
-_github_release_get() {
+_github_release_get_gh() {
   local \
     _namespace="${1}" \
     _repo="${2}" \
@@ -3099,7 +3108,7 @@ _github_release_get() {
     _releases_get \
       "${_namespace}" \
       "${_repo}" \
-      "gitlab"
+      "github"
     if (( "${#_releases[@]}" < 1 )); then
       _msg=(
         "Error retrieving releases list."
@@ -3116,6 +3125,9 @@ _github_release_get() {
     _msg_info \
       "${_msg[*]}"
   fi
+  # TODO:
+  #   move this onto a function
+  #   because its nice
   # gh \
   #   "${_gh_opts[@]}" \
   #   release \
@@ -3136,7 +3148,84 @@ _github_release_get() {
       --clobber \
       --pattern \
         "${_pattern}"
-  # write signature check
+  # TODO:
+  #   write signature check
+}
+
+_github_release_get_curl() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _tag \
+    _project_id \
+    _gl_dl_opts=() \
+    _api \
+    _url \
+    _urls=() \
+    _job_latest \
+    _output_file \
+    _pattern \
+    _token_private \
+    _service \
+    _release_dir_url \
+    _repo_http_url
+  shift \
+    2
+  _tag=""
+  if (( 0 < "${#}" )); then
+    _tag="${1}"
+  fi
+  _service="github"
+  if [[ "${_tag}" == "" ]]; then
+    _releases_get \
+      "${_namespace}" \
+      "${_repo}" \
+      "github"
+    if (( "${#_releases[@]}" < 1 )); then
+      _msg=(
+        "Error retrieving releases list."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
+    _tag="${_releases[-1]}"
+    _msg=(
+      "No release specified,"
+      "getting latest tag '${_tag}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
+  _release_assets_names_get \
+    "${_namespace}" \
+    "${_repo}-ur" \
+    "${_tag}" \
+    "${_service}"
+  _repo_http_url="https://${_service}.com/${_namespace}/${_repo}-ur"
+  _release_dir_url="${_repo_http_url}/releases/download/${_tag}"
+  for _asset in "${_assets_names[@]}"; do
+    if [[ " ${_asset} " == " dogeos-${_target_platform}-"*".pkg"* ]]; then
+      _msg=(
+        "Retrieving release"
+        "asset '${_asset}'."
+      )
+      _msg_info \
+        "${_asset}"
+      curl \
+        -L \
+        "${_release_dir_url}/${_asset}"
+    else
+      _msg=(
+        "Release asset '${_asset}'"
+        "skipped."
+      )
+      _msg_info \
+        "${_asset}"
+    fi
+  done
+  # TODO:
+  #   write signature check
 }
 
 _gitlab_release_get() {
