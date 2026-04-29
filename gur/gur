@@ -2603,10 +2603,11 @@ _token_private_get() {
       cat \
         "${_token_private}")"
   else
+    _token=""
     if [[ "${_domain}" == "github.com" ]]; then
       _token_private_get_gh \
         "${_namespace}" \
-        "0"
+        "${_exit}"
     fi
   fi
   if [[ "${_token}" == "" ]]; then
@@ -2649,6 +2650,7 @@ _token_private_get_gh() {
       "Found no token for namespace"
       "'${_namespace}' on github.com."
     )
+    _token=""
     if [[ "${_exit}" == "0" ]]; then
       _msg_info \
         "${_msg[*]}"
@@ -2657,7 +2659,6 @@ _token_private_get_gh() {
         "${_msg[*]}" \
         1
     fi
-    _token=""
   else
     if [[ "${_token}" == "gho_"* ]]; then
       return \
@@ -2718,7 +2719,8 @@ _github_release_assets_names_get() {
   _token_private_get \
     "github.com" \
     "${_namespace}" \
-    "0"
+    "0" || \
+  true
   if [[ "${_token}" != "" ]]; then
     _gh_opts+=(
       -H
