@@ -2605,7 +2605,8 @@ _token_private_get() {
   else
     if [[ "${_domain}" == "github.com" ]]; then
       _token_private_get_gh \
-        "${_namespace}"
+        "${_namespace}" \
+        "0"
     fi
   fi
   if [[ "${_token}" == "" ]]; then
