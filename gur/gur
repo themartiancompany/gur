@@ -3190,7 +3190,8 @@ _github_release_get_curl() {
     _token_private \
     _service \
     _release_dir_url \
-    _repo_http_url
+    _repo_http_url \
+    _curl_opts=()
   shift \
     2
   _tag=""
@@ -3234,14 +3235,20 @@ _github_release_get_curl() {
   _release_dir_url="${_repo_http_url}/releases/download/${_tag}"
   for _asset in "${_assets_names[@]}"; do
     if [[ " ${_asset} " == " dogeos-${_target_platform}-"*".pkg"* ]]; then
+      _url="${_release_dir_url}/${_asset}"
       _msg=(
         "Retrieving release"
         "asset '${_asset}'."
       )
       _msg_info \
-        "${_asset}"
+        "${_msg[*]}"
+      _curl_opts=(
+        -L
+        -o
+          "${PWD}/${_asset}"
+      )
       curl \
-        -L \
+        "${_curl_opts[@]}" \
         "${_release_dir_url}/${_asset}"
     else
       _msg=(
