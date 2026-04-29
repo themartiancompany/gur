@@ -2866,7 +2866,16 @@ _github_releases_retrieve_curl() {
     _releases_file \
     _token_private \
     _token \
-    _curl_opts=()
+    _curl_opts=() \
+    _msg=()
+  _msg=(
+    "Retrieving releases list for"
+    "repository '${_repo}' from"
+    "namespace '${_namespace}' from"
+    "Github using curl."
+  )
+  _msg_info \
+    "${_msg[*]}"
   _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/github/releases.json"
   _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
@@ -2892,6 +2901,11 @@ _github_releases_retrieve_curl() {
     -p \
     "$(dirname \
       "${_releases_file}")"
+  _msg=(
+    "Downloading '${_url}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
   curl \
     "${_curl_opts[@]}" \
     "${_url}" > \
@@ -3185,6 +3199,12 @@ _github_release_get_curl() {
   fi
   _service="github"
   if [[ "${_tag}" == "" ]]; then
+    _msg=(
+      "No release provided,"
+      "detecting latest."
+    )
+    _msg_info \
+      "${_msg[*]}"
     _releases_get \
       "${_namespace}" \
       "${_repo}" \
