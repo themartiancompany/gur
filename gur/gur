@@ -2696,64 +2696,6 @@ _release_assets_names_get() {
     "${_tag}"
 }
 
-_github_release_assets_names_get() {
-  local \
-    _namespace="${1}" \
-    _repo="${2}" \
-    _tag="${3}" \
-    _pkg_dir \
-    _releases_file \
-    _token_private \
-    _token \
-    _curl_opts=() \
-    _msg=()
-  _msg=(
-    "Retrieving release '${_tag}'"
-    "assets names list for repository"
-    "'${_repo}' on namespace '${_namespace}'."
-  )
-  _msg_info \
-    "${_msg[*]}"
-  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
-  _releases_file="${_pkg_dir}/github/releases.json"
-  _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
-  curl_opts+=(
-    -L
-    -H
-      "Accept: application/vnd.github+json"
-    -H
-      "X-GitHub-Api-Version: 2026-03-10"
-  )
-  _token_private_get \
-    "github.com" \
-    "${_namespace}" \
-    "0" || \
-  true
-  if [[ "${_token}" != "" ]]; then
-    _gh_opts+=(
-      -H
-        "Authorization: Bearer ${_token}"
-    )
-  fi
-  mkdir \
-    -p \
-    "$(dirname \
-         "${_releases_file}")"
-  curl \
-    "${_curl_opts[@]}" \
-    "${_url}" > \
-    "${_releases_file}"
-  _assets_names=( $(
-    cat \
-      "${_releases_file}" |
-      jq \
-        --raw-output \
-        '.[] | select(.tag_name == "'${_tag}'").assets.[].name')
-  )
-}
-
-
-
 _gitlab_release_assets_names_get() {
   true
 }
@@ -2773,16 +2715,31 @@ _github_release_assets_names_get() {
   mkdir \
     -p \
     "${_pkg_dir}"
-  "_github_releases_retrieve_${_retrieval_method}" \
-    "${_namespace}" \
-    "${_repo}"
-  _assets_names=( $(
-    cat \
-      "${_releases_file}" |
-      jq \
-        --raw-output \
-        '.[] | select(.tag_name == "'${_tag}'").assets.[].name')
-  )
+  if [[ "${_retrieval_method}" == "curl" ]]; then
+    "_github_releases_retrieve_${_retrieval_method}" \
+      "${_namespace}" \
+      "${_repo}"
+    _assets_names=( $(
+      cat \
+        "${_releases_file}" |
+        jq \
+          --raw-output \
+          '.[] | select(.tag_name == "'${_tag}'").assets.[].name')
+    )
+  elif [[ "${_retrieval_method}" == "gh" ]]; then
+    _assets_names=( $(
+      gh \
+        release \
+        --repo \
+          "${_namespace}/${_repo}" \
+        view \
+          "${_tag}" \
+        --json \
+          "assets" \
+        --jq \
+          ".assets.[].name")
+    )
+  fi
 }
 
 _github_release_asset_sum_get() {
