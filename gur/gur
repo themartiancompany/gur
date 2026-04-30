@@ -3008,7 +3008,7 @@ _github_releases_retrieve_gh() {
   fi
   _gh_opts+=(
     --repo
-      "${_namespace}/${_repo}-ur"
+      "${_namespace}/${_repo}"
     --json
       "tagName"
     --jq
