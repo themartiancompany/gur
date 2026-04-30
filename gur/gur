@@ -2770,6 +2770,9 @@ _github_release_assets_names_get() {
     _curl_opts=()
   _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/github/releases.json"
+  mkdir \
+    -p \
+    "${_pkg_dir}"
   "_github_releases_retrieve_${_retrieval_method}" \
     "${_namespace}" \
     "${_repo}"
@@ -3389,8 +3392,6 @@ _releases_get() {
   elif [[ "${_service}" == "github" ]]; then
     _filter='.[].tagName'
   fi
-  cat \
-    "${_releases_file}"
   _releases=( $(
     cat \
       "${_releases_file}" |
