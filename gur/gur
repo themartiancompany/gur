@@ -3010,7 +3010,7 @@ _github_releases_retrieve_gh() {
   _releases_file="${_pkg_dir}/${_service}/releases.json"
   mkdir \
     -p \
-    "$(basename \
+    "$(dirname \
          "${_releases_file}")"
   _msg=(
     "Getting releases for"
