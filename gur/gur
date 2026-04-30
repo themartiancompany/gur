@@ -2867,7 +2867,9 @@ _github_releases_retrieve_curl() {
     _token_private \
     _token \
     _curl_opts=() \
-    _msg=()
+    _msg=() \
+    _rate_limited_url
+  _rate_limited_url="https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"
   _msg=(
     "Retrieving releases list for"
     "repository '${_repo}' from"
@@ -2910,6 +2912,22 @@ _github_releases_retrieve_curl() {
     "${_curl_opts[@]}" \
     "${_url}" > \
     "${_releases_file}"
+  _rate_limited="$(
+    cat \
+      "${_releases_file}" |
+      jq \
+        --raw-output \
+        '.documentation_url' || \
+        true)"
+  if [[ "${_rate_limited}" == "${_rate_limited_url}" ]]; then
+    _msg=(
+      "API rate limit exceeded, sign-in to"
+      "Github get an higher limit."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
 }
 
 
@@ -2982,7 +3000,11 @@ _github_releases_retrieve_gh() {
     _namespace="${1}" \
     _repo="${2}" \
     _gh_opts=() \
-    _switched
+    _switched \
+    _pkg_dir \
+    _releases_file
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
+  _releases_file="${_pkg_dir}/${_service}/releases.json"
   _msg=(
     "Getting releases for"
     "repository '${_repo}'"
@@ -3006,26 +3028,37 @@ _github_releases_retrieve_gh() {
     _msg_info \
       "${_msg[*]}"
   fi
-  gh \
-    "${_gh_opts[@]}" \
-    release \
-      list 
   _gh_opts+=(
     --repo
       "${_namespace}/${_repo}"
     --json
       "tagName"
-    --jq
-      ".[].tagName"
+    # --jq
+    #   ".[].tagName"
   )
-  _releases=( $(
-    gh \
-      "${_gh_opts[@]}" \
-      release \
-        list |
-      sort \
-        -V)
+  _msg=(
+    "Running gh with options"
+    "'${_gh_opts[@]}'."
   )
+  _msg_info \
+    "${_msg[*]}"
+  gh \
+    "${_gh_opts[@]}" \
+    release \
+      list > \
+    "${_releases_file}"
+  # cat \
+  #   "${_releases_file}" | \
+  #   jq \
+  #     ".[].tagName"
+  # _releases=( $(
+  #   gh \
+  #     "${_gh_opts[@]}" \
+  #     release \
+  #       list |
+  #     sort \
+  #       -V)
+  # )
 }
 
 _release_latest_get() {
@@ -3057,12 +3090,17 @@ _release_latest_get() {
       "${_namespace}" \
       "${_repo}"
   fi
+  if [[ "${_service}" == "gitlab" ]]; then
+    _filter='.[].tag_name'
+  elif [[ "${_service}" == "github" ]]; then
+    _filter='.[].tagName'
+  fi
   _tag="$(
     cat \
       "${_releases_file}" |
       jq \
         --raw-output \
-        '.[].tag_name' |
+        "${_filter}" |
         sort \
           -V |
         tail \
@@ -3346,12 +3384,19 @@ _releases_get() {
   "_${_service}_releases_retrieve" \
     "${_namespace}" \
     "${_repo}"
+  if [[ "${_service}" == "gitlab" ]]; then
+    _filter='.[].tag_name'
+  elif [[ "${_service}" == "github" ]]; then
+    _filter='.[].tagName'
+  fi
+  cat \
+    "${_releases_file}"
   _releases=( $(
     cat \
       "${_releases_file}" |
       jq \
         --raw-output \
-        '.[].tag_name' |
+        "${_filter}" |
         sort \
           -V)
   )
