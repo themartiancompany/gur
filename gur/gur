@@ -3006,6 +3006,10 @@ _github_releases_retrieve_gh() {
     _msg_info \
       "${_msg[*]}"
   fi
+  gh \
+    "${_gh_opts[@]}" \
+    release \
+      list 
   _gh_opts+=(
     --repo
       "${_namespace}/${_repo}"
