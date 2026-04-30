@@ -3405,6 +3405,8 @@ _releases_get() {
         sort \
           -V)
   )
+  cat \
+    "${_releases[@]}"
 }
 
 _gitlab_releases_retrieve() {
