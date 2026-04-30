@@ -3178,7 +3178,7 @@ _github_release_get_gh() {
   if [[ "${_tag}" == "" ]]; then
     _releases_get \
       "${_namespace}" \
-      "${_repo}" \
+      "${_repo}-ur" \
       "github"
     if (( "${#_releases[@]}" < 1 )); then
       _msg=(
@@ -3405,8 +3405,6 @@ _releases_get() {
         sort \
           -V)
   )
-  cat \
-    "${_releases[@]}"
 }
 
 _gitlab_releases_retrieve() {
