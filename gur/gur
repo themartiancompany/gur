@@ -3121,7 +3121,10 @@ _github_release_get_gh() {
     _job_latest \
     _output_file \
     _pattern \
-    _token_private
+    _pattern_arch \
+    _pattern_arch_all \
+    _pattern_platform \
+    _pattern_platform_all
   shift \
     2
   _tag=""
@@ -3161,7 +3164,17 @@ _github_release_get_gh() {
   #   release \
   #     view \
   #     "${_tag}"
-  _pattern="dogeos-${_target_platform}-*.pkg.*"
+  _pattern_platform="dogeos-${_target_platform}"
+  _pattern_platform_all="dogeos-*"
+  if [[ "${_target_platform}" == "all" ]]; then
+    _pattern_platform="${_pattern_platform_all}"
+  fi
+  _pattern_arch="${_pattern_platform}-*-${_target_arch}.pkg.*"
+  _pattern_arch_any="${_pattern_platform}-*-any.pkg.*"
+  _pattern_arch_all="${pattern_platform}-*.pkg.*"
+  if [[ "${_target_arch}" == "all" ]]; then
+    _pattern="${_pattern_arch_all}"
+  fi
   _msg=(
     "Retrieving release artifacts"
     "satisfying pattern '${_pattern}'."
@@ -3176,6 +3189,16 @@ _github_release_get_gh() {
       --clobber \
       --pattern \
         "${_pattern}"
+  if [[ "${_target_platform}" != "all" ]]; then
+    gh \
+      "${_gh_opts[@]}" \
+      release \
+        download \
+        "${_tag}" \
+        --clobber \
+        --pattern \
+          "${_pattern_arch_any}"
+  fi
   # TODO:
   #   write signature check
 }
@@ -5512,10 +5535,21 @@ Usage:
 
   release options:
      -P <target-platform>   Target platform for the 'get release'
-                            command.
+                            command. Allowed values are
+                            - 'gnu',
+                            - 'android',
+                            - 'windows' or
+                            - 'all'.
                             Default: ${target_platform}
      -A <target-arch>       Target CPU architecture for the
                             'get release' command.
+                            Allowed values are
+                            - 'any' (architecture independent),
+                            - 'x86_64',
+                            - 'aarch64',
+                            - 'arm',
+                            - 'i686' or
+                            - 'all'.
                             Default: ${target_arch}
      -r <target-revision>   Target revision (version-release)
                             to target when using the 'get release'
