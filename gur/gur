@@ -4162,7 +4162,7 @@ _gur_get() {
       else
         _asset="${_args_extra[1]}"
       fi
-      if [[ "${_assets_names[*]} " != *" ${_asset} "* ]]; then
+      if [[ " ${_assets_names[*]} " != *" ${_asset} "* ]]; then
         _msg=(
           "Target asset '${_asset}'"
           "not found."
