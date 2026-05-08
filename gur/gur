@@ -2753,6 +2753,10 @@ _github_release_asset_sum_get() {
     _releases_file \
     _token_private \
     _token \
+    _filter \
+    _sum \
+    _digest \
+    _digests=() \
     _curl_opts=()
   _service="gitlab"
   if (( 4 < "${#}" )); then
@@ -2763,15 +2767,42 @@ _github_release_asset_sum_get() {
   "_github_releases_retrieve_${_retrieval_method}" \
     "${_namespace}" \
     "${_repo}"
-  _sums=( $(
-    cat \
-      "${_releases_file}" |
-      jq \
-        --raw-output \
-        '.[] | select(.tag_name == "'${_tag}'").assets.[] | select(.name == "'${_asset_name}'").digest' |
-        sed \
-          "s/^sha256://g")
-  )
+  if [[ "${_retrieval_method}" == "curl" ]]; then
+    _filter='tag_name'
+  elif [[ "${_retrieval_method}" == "gh" ]]; then
+    _filter='tagName'
+  fi
+  if [[ "${_retrieval_method}" == "curl" ]]; then
+    _sums=( $(
+      cat \
+        "${_releases_file}" |
+        jq \
+          --raw-output \
+          '.[] | select(.'${_filter}' == "'${_tag}'").assets.[] | select(.name == "'${_asset_name}'").digest' |
+          sed \
+            "s/^sha256://g")
+    )
+  elif [[ "${_retrieval_method}" == "gh" ]]; then
+    _digests=( $(
+      gh \
+        release \
+        --repo \
+          "${_namespace}/${_repo}" \
+        view \
+          "${_tag}" \
+        --json \
+          "assets" \
+        --jq \
+          '.assets.[] | select(.name == "'${_asset_name}'").digest')
+    )
+    _sums=()
+    for _digest in "${_digests[@]}"; do
+      _sum="${_digest#sha256:}"
+      _sums+=(
+        "${_sum}"
+      )
+    done
+  fi
 }
 
 _release_asset_sum_get() {
@@ -2842,10 +2873,11 @@ _github_releases_retrieve_curl() {
   _releases_file="${_pkg_dir}/github/releases.json"
   _url="https://api.github.com/repos/${_namespace}/${_repo}/releases"
   curl_opts+=(
+    --silent
     -L
-    -H
+    --header
       "Accept: application/vnd.github+json"
-    -H
+    --header
       "X-GitHub-Api-Version: 2026-03-10"
   )
   _token_private_get \
@@ -2877,7 +2909,8 @@ _github_releases_retrieve_curl() {
       "${_releases_file}" |
       jq \
         --raw-output \
-        '.documentation_url' || \
+        '.documentation_url' \
+        2&>"/dev/null" || \
         true)"
   if [[ "${_rate_limited}" == "${_rate_limited_url}" ]]; then
     _msg=(
@@ -3006,23 +3039,44 @@ _github_releases_retrieve_gh() {
   )
   _msg_info \
     "${_msg[*]}"
-  gh \
-    "${_gh_opts[@]}" \
-    release \
-      list > \
-    "${_releases_file}"
+  # gh \
+  #   "${_gh_opts[@]}" \
+  #   release \
+  #     list
+  # gh \
+  #   "${_gh_opts[@]}" \
+  #   release \
+  #     list > \
+  #   "${_releases_file}"
   # cat \
   #   "${_releases_file}" | \
   #   jq \
   #     ".[].tagName"
-  # _releases=( $(
-  #   gh \
-  #     "${_gh_opts[@]}" \
-  #     release \
-  #       list |
-  #     sort \
-  #       -V)
-  # )
+  _releases="$(
+    gh \
+      "${_gh_opts[@]}" \
+      release \
+        list || \
+    true)"
+  if [[ "${_releases}" == "" || \
+        "${_releases}" == "[]" ]]; then
+    _msg=(
+      "Error retrieving releases."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  else
+    _msg=(
+      "Saving releases to '${_releases_file}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+    printf \
+      "%s\n" \
+      "${_releases[@]}" > \
+      "${_releases_file}"
+  fi
 }
 
 _release_latest_get() {
