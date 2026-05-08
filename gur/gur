@@ -3171,7 +3171,7 @@ _github_release_get_gh() {
   fi
   _pattern_arch="${_pattern_platform}-*-${_target_arch}.pkg.*"
   _pattern_arch_any="${_pattern_platform}-*-any.pkg.*"
-  _pattern_arch_all="${pattern_platform}-*.pkg.*"
+  _pattern_arch_all="${_pattern_platform}-*.pkg.*"
   if [[ "${_target_arch}" == "all" ]]; then
     _pattern="${_pattern_arch_all}"
   fi
