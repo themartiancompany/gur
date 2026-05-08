@@ -3191,6 +3191,13 @@ _github_release_get_gh() {
       --pattern \
         "${_pattern}"
   if [[ "${_target_platform}" != "all" ]]; then
+    _msg=(
+      "Retrieving architecture-independent"
+      "release artifacts"
+      "satisfying pattern '${_pattern_arch_any}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
     gh \
       "${_gh_opts[@]}" \
       release \
@@ -3198,7 +3205,8 @@ _github_release_get_gh() {
         "${_tag}" \
         --clobber \
         --pattern \
-          "${_pattern_arch_any}"
+          "${_pattern_arch_any}" || \
+    true
   fi
   # TODO:
   #   write signature check
