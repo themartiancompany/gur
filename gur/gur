@@ -3437,7 +3437,11 @@ _releases_get() {
   if [[ "${_service}" == "gitlab" ]]; then
     _filter='.[].tag_name'
   elif [[ "${_service}" == "github" ]]; then
-    _filter='.[].tagName'
+    if [[ "${_retrieval_method}" == "curl" ]]; then
+      _filter='.[].tag_name'
+    elif [[ "${_retrieval_method}" == "gh" ]]; then
+      _filter='.[].tagName'
+    fi
   fi
   _releases=( $(
     cat \
