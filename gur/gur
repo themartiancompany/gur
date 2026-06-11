@@ -5100,7 +5100,7 @@ _github_accounts_get() {
       jq \
       --raw-output \
         '.hosts."github.com".[].login' \
-      2>&"/dev/null" ||
+      2&>"/dev/null" ||
     true)"
   if [[ "${_namespaces}" == "null" ]]; then
     _namespaces=""
