@@ -98,6 +98,7 @@ _global_variables() {
     "env"
     "log"
     "quota"
+    "pages"
     "releases"
     "release"
     "assets_names"
@@ -1318,6 +1319,113 @@ _repo_new() {
     "${_namespace}" \
     "${_repo}" \
     "${_fork}"
+}
+
+_github_pages_retrieve_curl() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _pkg_dir \
+    _token_private \
+    _token \
+    _curl_opts=() \
+    _msg=() \
+    _rate_limited_url
+  _rate_limited_url="https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"
+  _msg=(
+    "Retrieving pages for"
+    "repository '${_repo}' from"
+    "namespace '${_namespace}' from"
+    "Github using curl."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
+  _pages_file="${_pkg_dir}/github/pages.json"
+  _url="https://api.github.com/repos/${_namespace}/${_repo}/pages"
+  curl_opts+=(
+    --silent
+    -L
+    --header
+      "Accept: application/vnd.github+json"
+    --header
+      "X-GitHub-Api-Version: 2026-03-10"
+  )
+  _token_private_get \
+    "github.com" \
+    "${_namespace}" \
+    "0" || \
+  true
+  if [[ "${_token}" != "" ]]; then
+    _gh_opts+=(
+      -H
+        "Authorization: Bearer ${_token}"
+    )
+  fi
+  mkdir \
+    -p \
+    "$(dirname \
+      "${_pages_file}")"
+  _msg=(
+    "Downloading '${_url}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  curl \
+    "${_curl_opts[@]}" \
+    "${_url}" > \
+    "${_pages_file}"
+  _rate_limited="$(
+    cat \
+      "${_pages_file}" |
+      jq \
+        --raw-output \
+        '.documentation_url' \
+        2&>"/dev/null" || \
+        true)"
+  if [[ "${_rate_limited}" == "${_rate_limited_url}" ]]; then
+    _msg=(
+      "API rate limit exceeded, sign-in to"
+      "Github get an higher limit."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  cat \
+    "${_pages_file}" |
+    jq
+}
+
+_pages_get() {
+  local \
+    _target_namespace="${1}" \
+    _target_repository="${2}" \
+    _git_service \
+    _pages_file
+  _git_service="gitlab"
+  if (( 2 < "${#}" )); then
+    _git_service="${3}"
+  fi
+  if [[ "${_git_service}" == "github" ]]; then
+    "_${_git_service}_pages_retrieve_curl" \
+      "${_target_namespace}" \
+      "${_target_repository}"
+  fi
+  if [[ "${_git_service}" == "github" ]]; then
+    if [[ "${_retrieval_method}" == "curl" ]]; then
+      _filter='.status'
+    elif [[ "${_retrieval_method}" == "gh" ]]; then
+      _filter='.status'
+    fi
+  fi
+  _pages=( $(
+    cat \
+      "${_pages_file}" |
+      jq \
+        --raw-output \
+        "${_filter}")
+  )
 }
 
 _quota_get() {
@@ -2854,7 +2962,6 @@ _github_releases_retrieve_curl() {
     _namespace="${1}" \
     _repo="${2}" \
     _pkg_dir \
-    _releases_file \
     _token_private \
     _token \
     _curl_opts=() \
@@ -3966,6 +4073,18 @@ _log_check() {
   true
 }
 
+_pages_check() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}"
+  _pages_get \
+    "${_target_namespace}" \
+    "${_target_repo}-man" \
+    "github"
+  echo \
+    "${_pages[@]}"
+}
+
 _releases_check() {
   true
 }
@@ -4097,6 +4216,12 @@ _gur_get() {
       )
     _msg_info \
       "${_msg[*]}"
+  fi
+  if [[ "${_target_key}" == "pages" ]]; then
+    _pages_get \
+      "${_target_namespace}" \
+      "${_target_value}" \
+      "${_git_services[0]}"
   fi
   if [[ "${_target_key}" == "release" ]]; then
     _namespace_user="${_target_namespace}"
@@ -4248,6 +4373,7 @@ _gur_get() {
     done
   fi
   if [[ "${_target_key}" != "repos" && \
+        "${_target_key}" != "pages" && \
         "${_target_key}" != "quota" && \
         "${_target_key}" != "log" && \
         "${_target_key}" != "release" && \
