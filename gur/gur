@@ -1357,7 +1357,7 @@ _github_pages_retrieve_curl() {
     "0" || \
   true
   if [[ "${_token}" != "" ]]; then
-    _gh_opts+=(
+    _curl_opts+=(
       -H
         "Authorization: Bearer ${_token}"
     )
@@ -1392,10 +1392,112 @@ _github_pages_retrieve_curl() {
       "${_msg[*]}" \
       1
   fi
-  cat \
-    "${_pages_file}" |
-    jq
 }
+
+_github_pages_set_curl() {
+  local \
+    _namespace="${1}" \
+    _repo="${2}" \
+    _pkg_dir \
+    _token_private \
+    _token \
+    _curl_opts=() \
+    _msg=() \
+    _rate_limited_url \
+    _branch_missing_msg=() \
+    _branch_missing
+  _branch_missing_msg+=(
+    "The gh-pages branch must"
+    "exist before GitHub Pages"
+    "can be built."
+  )
+  _rate_limited_url="https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"
+  _msg=(
+    "Setting pages for"
+    "repository '${_repo}' from"
+    "namespace '${_namespace}' from"
+    "Github using curl."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
+  _pages_file="${_pkg_dir}/github/pages.json"
+  _url="https://api.github.com/repos/${_namespace}/${_repo}/pages"
+  curl_opts+=(
+    --silent
+    -X
+      "POST"
+    --header
+      "Accept: application/vnd.github+json"
+    --header
+      "X-GitHub-Api-Version: 2026-03-10"
+  )
+  _token_private_get \
+    "github.com" \
+    "${_namespace}" \
+    "0" || \
+  true
+  if [[ "${_token}" != "" ]]; then
+    _curl_opts+=(
+      -H
+        "Authorization: Bearer ${_token}"
+    )
+  fi
+  _pages_set_json=( '{'
+    '"source": {'
+      '"branch":'
+        '"gh-pages",'
+      '"path":'
+        '"/" } }'
+  )
+  _curl_opts+=(
+    -d
+      "${_pages_set_json[*]}"
+  )
+  mkdir \
+    -p \
+    "$(dirname \
+      "${_pages_file}")"
+  _msg=(
+    "Downloading '${_url}'."
+  )
+  _msg_info \
+    "${_msg[*]}"
+  curl \
+    "${_curl_opts[@]}" \
+    "${_url}" > \
+    "${_pages_file}"
+  _rate_limited="$(
+    cat \
+      "${_pages_file}" |
+      jq \
+        --raw-output \
+        '.documentation_url' \
+        2&>"/dev/null" || \
+        true)"
+  if [[ "${_rate_limited}" == "${_rate_limited_url}" ]]; then
+    _msg=(
+      "API rate limit exceeded, sign-in to"
+      "Github get an higher limit."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+  _branch_missing="$(
+    cat \
+      "${_pages_file}" |
+      jq \
+        --raw-output \
+        '.message')"
+  if [[ "${_branch_missing}" == "${_branch_missing_msg[*]}" ]]; then
+    _msg_error \
+      "${_branch_missing}" \
+      1
+  fi
+}
+
+
 
 _pages_get() {
   local \
@@ -2993,7 +3095,7 @@ _github_releases_retrieve_curl() {
     "0" || \
   true
   if [[ "${_token}" != "" ]]; then
-    _gh_opts+=(
+    _curl_opts+=(
       -H
         "Authorization: Bearer ${_token}"
     )
@@ -4073,6 +4175,15 @@ _log_check() {
   true
 }
 
+_pages_set() {
+  local \
+    _target_namespace="${1}" \
+    _target_repo="${2}"
+  _github_pages_set_curl \
+    "${_target_namespace}" \
+    "${_target_repo}"
+}
+
 _pages_check() {
   local \
     _target_namespace="${1}" \
@@ -4081,8 +4192,13 @@ _pages_check() {
     "${_target_namespace}" \
     "${_target_repo}-man" \
     "github"
-  echo \
-    "${_pages[@]}"
+  if [[ " ${_pages[*]} " == *" 404 "* ]]; then
+    _pages_set \
+      "${_target_namespace}" \
+      "${_target_repo}"
+    echo \
+      "${_pages[@]}"
+  fi
 }
 
 _releases_check() {
