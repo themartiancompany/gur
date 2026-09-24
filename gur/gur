@@ -2834,6 +2834,81 @@ _token_private_get() {
   fi
 }
 
+_token_private_get_gh_cat() {
+  local \
+    _namespace="${1}" \
+    _exit \
+    _hosts_path \
+    _no_token_found_error=() \
+    _gh_opts=()
+  _exit="1"
+  if (( 1 < "${#}" )); then
+    _exit="${2}"
+  fi
+  _hosts_path="${HOME}/.config/gh/hosts.yml"
+  if [[ ! -e "${_hosts_path}" ]]; then
+    _msg=(
+      "Found no 'gh' configuration."
+    )
+    _token=""
+    if [[ "${_exit}" == "0" ]]; then
+      _msg_info \
+        "${_msg[*]}"
+    elif [[ "${_exit}" == "1" ]]; then
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    fi
+  fi
+  # _no_token_found_error+=(
+  #   "no oauth token found for"
+  #   "github.com account ${_namespace}"
+  # ) 
+  # _gh_opts+=(
+  #   -u
+  #     "${_namespace}"
+  # )
+  # _token="$(
+  #   gh \
+  #     "${_gh_opts[@]}" \
+  #     auth \
+  #     token \
+  #     2>&1)"
+  # if [[ "${_token}" == "${_no_token_found_error[*]}" ]]; then
+  #   _msg=(
+  #     "Found no token for namespace"
+  #     "'${_namespace}' on github.com."
+  #   )
+  #   _token=""
+  #   if [[ "${_exit}" == "0" ]]; then
+  #     _msg_info \
+  #       "${_msg[*]}"
+  #   elif [[ "${_exit}" == "1" ]]; then
+  #     _msg_error \
+  #       "${_msg[*]}" \
+  #       1
+  #   fi
+  # else
+  #   if [[ "${_token}" == "gho_"* ]]; then
+  #     return \
+  #       0
+  #   else
+  #     _msg=(
+  #       "Unknown error retrieving token"
+  #       "for namespace '${_namespace}'".
+  #     )
+  #     _msg_error \
+  #       "${_msg[*]}" \
+  #       0
+  #     echo \
+  #       "${_token}" \
+  #       1>&2
+  #     return \
+  #       "${_exit}"
+  #   fi
+  # fi
+}
+
 _token_private_get_gh() {
   local \
     _namespace="${1}" \
