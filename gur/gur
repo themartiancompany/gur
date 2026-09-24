@@ -5612,8 +5612,9 @@ _target_namespaces_auto_detect() {
   local \
     _msg=()
   if [[ "0" == "${#target_namespaces[@]}" ]]; then
-    target_namespaces+=( $(
-      _gur_namespaces_get)
+    target_namespaces+=(
+      "themartiancompany"
+      $(_gur_namespaces_get)
     )
   fi
 }
