@@ -2795,6 +2795,7 @@ _token_private_get() {
   local \
     _domain="${1}" \
     _namespace="${2}" \
+    _cat \
     _exit \
     _token_private
   _exit=1
@@ -2812,7 +2813,12 @@ _token_private_get() {
   else
     _token=""
     if [[ "${_domain}" == "github.com" ]]; then
-      _token_private_get_gh \
+      if [[ "${_retrieval_method}" == "gh" ]]; then
+        _cat=""
+      elif [[ "${_retrieval_method}" == "curl" ]]; then
+        _cat="_cat"
+      fi
+      "_token_private_get_gh${_cat}" \
         "${_namespace}" \
         "${_exit}"
     fi
