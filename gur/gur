@@ -1495,9 +1495,11 @@ _github_pages_set_curl() {
       "${_branch_missing}" \
       1
   fi
+  cat \
+    "${_pages_file}" |
+    jq \
+      .
 }
-
-
 
 _pages_get() {
   local \
@@ -1521,13 +1523,8 @@ _pages_get() {
       _filter='.status'
     fi
   fi
-  _pages=( $(
-    cat \
-      "${_pages_file}" |
-      jq \
-        --raw-output \
-        "${_filter}")
-  )
+  _pages="$(cat \
+      "${_pages_file}")"
 }
 
 _quota_get() {
@@ -4187,17 +4184,28 @@ _pages_set() {
 _pages_check() {
   local \
     _target_namespace="${1}" \
-    _target_repo="${2}"
+    _target_repo="${2}" \
+    _pages \
+    _pages_status
   _pages_get \
     "${_target_namespace}" \
     "${_target_repo}-man" \
     "github"
-  if [[ " ${_pages[*]} " == *" 404 "* ]]; then
+  _pages_status="$(
+    echo \
+      "${_pages}" |
+      jq \
+        --raw-output \
+        '.status')"
+  if [[ "${_pages_status}" == "404" ]]; then
     _pages_set \
       "${_target_namespace}" \
       "${_target_repo}"
     echo \
-      "${_pages[@]}"
+      "${_pages}"
+  else
+    echo \
+      "${_pages}"
   fi
 }
 
