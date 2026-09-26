@@ -3806,6 +3806,12 @@ _api_rate_limit_check() {
       "When you hit the limit"
       "Github also calls you by your IP address."
       "Yours is '${_ip}'."
+      "\n"
+      "If your internet provider assigns you"
+      "a dynamic address try disconnect and"
+      "reconnect the device which connects"
+      "to your internet provider, (your phone,"
+      "your home router, your antenna)."
     )
     _msg_error \
       "${_msg[*]}" \
