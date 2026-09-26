@@ -396,7 +396,8 @@ _gitlab_repos_get() {
   _url="${_api}/namespaces"
   _token_private_get \
     "gitlab.com" \
-    "${_namespace}"
+    "${_namespace}" \
+    0
   _curl_opts+=(
     --silent
     --request
@@ -1181,7 +1182,8 @@ _gitlab_namespaces_get() {
   _url="${_api}/namespaces"
   _token_private_get \
     "gitlab.com" \
-    "${_user}"
+    "${_user}" \
+    0
   _curl_opts+=(
     --silent
     --request
@@ -1275,7 +1277,8 @@ _gitlab_repo_new() {
   _url="${_api}/projects"
   _token_private_get \
     "gitlab.com" \
-    "${_namespace}"
+    "${_namespace}" \
+    0
   _curl_opts+=(
     --silent
     --request
@@ -5541,7 +5544,8 @@ _gitlab_token_owner_get() {
     _url
   _token_private_get \
     "gitlab.com" \
-    "${_namespace}"
+    "${_namespace}" \
+    0
   _api="https://gitlab.com/api/v4"
   _url="${_api}/personal_access_tokens/self"
   _curl_opts+=(
@@ -5596,7 +5600,8 @@ _gitlab_username_get() {
     _username
   _token_private_get \
     "gitlab.com" \
-    "${_namespace}"
+    "${_namespace}" \
+    0
   _api="https://gitlab.com/api/v4"
   _url="${_api}/users/${_user_id}"
   _curl_opts+=(
