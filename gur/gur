@@ -3743,7 +3743,9 @@ _releases_get() {
     _repo="${2}" \
     _service \
     _pkg_dir \
-    _releases_file
+    _releases_file \
+    _releases_file_content \
+    _msg=()
   _service="gitlab"
   if (( 2 < "${#}" )); then
     _service="${3}"
@@ -3762,15 +3764,31 @@ _releases_get() {
       _filter='.[].tagName'
     fi
   fi
-  _releases=( $(
+  _releases_file_content="$(
     cat \
-      "${_releases_file}" |
+      "${_releases_file}")"
+  _releases=( $(
+    echo \
+      "${_releases_file_content}" |
       jq \
         --raw-output \
         "${_filter}" |
         sort \
           -V)
   )
+  if [[ "${_releases[*]}" == "" ]]; then
+    _msg=(
+      "Found no releases, content of"
+      "'${_service}' releases file:"
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      0
+    echo \
+      "${_releases_file_content}"
+    exit \
+      1
+  fi
 }
 
 _gitlab_releases_retrieve() {
