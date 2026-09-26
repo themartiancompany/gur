@@ -3892,7 +3892,7 @@ _releases_get() {
     _msg=(
       "Found no releases, contents of"
       "'${_service}' releases file"
-      "at '${_release_file}':"
+      "at '${_releases_file}':"
     )
     _msg_error \
       "${_msg[*]}" \
