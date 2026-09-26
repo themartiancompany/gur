@@ -3749,7 +3749,7 @@ _ip_get() {
       "${_api_rate_msg}" |
       sed \
         "s/${_api_rate_limit_msg_start[*]}//g;
-        s/${_api_rate_limit_msg_end[*]}//g")"
+         s/${_api_rate_limit_msg_end[*]}//g")"
 }
 
 _api_rate_limit_check() {
@@ -3768,7 +3768,7 @@ _api_rate_limit_check() {
   _doc_path="overview/resources-in-the-rest-api"
   _api_rate_limit_doc_uri="${_doc_dir}/${_doc_path}#rate-limiting"
   _api_rate_limit_msg_start+=(
-    "API rate limit exceeded for"
+    "API rate limit exceeded for "
   )
   _api_rate_limit_msg_end+=(
     ". (But here's the good news:"
@@ -3811,7 +3811,7 @@ _api_rate_limit_check() {
       "When you hit the limit"
       "Github also calls you by your IP address."
       "Yours is '${_ip}'."
-      "\n"
+      $'\n'
       "If your internet provider assigns you"
       "a dynamic address try disconnect and"
       "reconnect the device which connects"
