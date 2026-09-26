@@ -3808,12 +3808,14 @@ _api_rate_limit_check() {
     _ip_get \
       "${_receipt_msg}"
     _msg=(
+      $'\n'
       "You've hit Github API limit."
       "If you don't at least log in into"
       "Github you can't access any"
       "Gur information from the API."
       "When you hit the limit"
       "Github also calls you by your IP address."
+      $'\n'
       "Yours is '${_ip}'."
       $'\n'
       "If your internet provider assigns you"
