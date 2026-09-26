@@ -3033,9 +3033,12 @@ _github_release_assets_names_get() {
           true)
       )
       if [[ "${_assets_names[*]}" == "" ]]; then
+        _api_rate_limit_check \
+          "${_assets}"
         _msg=(
-          "No assets names found. Content of the release"
-          "file:"
+          "Found no releases, contents of"
+          "'${_service}' releases file"
+          "at '${_release_file}':"
         )
         _msg_error \
           "${_msg[*]}" \
