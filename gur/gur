@@ -3743,7 +3743,7 @@ _gitlab_release_get() {
 
 _ip_get() {
   local \
-    _api_rate_msg="${1}"
+    _api_rate_msg="${1}" \
     _cut1
   _cut1="$(
     echo \
