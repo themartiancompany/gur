@@ -3744,12 +3744,17 @@ _gitlab_release_get() {
 _ip_get() {
   local \
     _api_rate_msg="${1}"
-  _ip="$(
+    _cut1
+  _cut1="$(
     echo \
       "${_api_rate_msg}" |
       sed \
-        "s/${_api_rate_limit_msg_start[*]}//g;
-         s/${_api_rate_limit_msg_end[*]}//g")"
+        "s/${_api_rate_limit_msg_start[*]}//g")"
+  _ip="$(
+    echo \
+      "${_cut1}" |
+      sed \
+        "s/${_api_rate_limit_msg_end[*]}//g")"
 }
 
 _api_rate_limit_check() {
