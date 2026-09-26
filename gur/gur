@@ -2996,11 +2996,13 @@ _github_release_assets_names_get() {
     _namespace="${1}" \
     _repo="${2}" \
     _tag="${3}" \
+    _assets \
     _pkg_dir \
     _releases_file \
     _token_private \
     _token \
-    _curl_opts=()
+    _curl_opts=() \
+    _msg=()
   _pkg_dir="${_cache_dir}/packages/${_repo}/${_namespace}"
   _releases_file="${_pkg_dir}/github/releases.json"
   mkdir \
@@ -3010,13 +3012,40 @@ _github_release_assets_names_get() {
     "_github_releases_retrieve_${_retrieval_method}" \
       "${_namespace}" \
       "${_repo}"
-    _assets_names=( $(
+    _assets="$(
       cat \
-        "${_releases_file}" |
-        jq \
-          --raw-output \
-          '.[] | select(.tag_name == "'${_tag}'").assets.[].name')
-    )
+        "${_releases_file}")"
+    if [[ "${_assets}" == "" ]]; then
+      _msg=(
+        "Releases file"
+        "'${_releases_file}' missing."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        1
+    else
+      _assets_names=( $(
+        echo \
+          "${_assets}" |
+          jq \
+            --raw-output \
+            '.[] | select(.tag_name == "'${_tag}'").assets.[].name' || \
+          true)
+      )
+      if [[ "${_assets_names[*]}" == "" ]]; then
+        _msg=(
+          "No assets names found. Content of the release"
+          "file:"
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          0
+        echo \
+          "${_assets}"
+        exit \
+          1
+      fi
+    fi
   elif [[ "${_retrieval_method}" == "gh" ]]; then
     _assets_names=( $(
       gh \
