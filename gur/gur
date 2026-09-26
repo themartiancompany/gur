@@ -3745,12 +3745,6 @@ _ip_get() {
   local \
     _api_rate_msg="${1}" \
     _cut1
-  echo ${_api_rate_limit_msg_start[*]}
-  echo
-  echo \
-    "${_api_rate_msg}" |
-    sed \
-      "s/${_api_rate_limit_msg_start[*]}//g"
   _cut1="$(
     echo \
       "${_api_rate_msg}" |
@@ -3811,9 +3805,8 @@ _api_rate_limit_check() {
   fi
   if [[ "${_api_rate_msg_flag}" == "true" || \
         "${_api_rate_doc_uri_flag}" == "true" ]]; then
-    _ip="$(
-      _ip_get \
-        "${_receipt_msg}")"
+    _ip_get \
+      "${_receipt_msg}"
     _msg=(
       "You've hit Github API limit."
       "If you don't at least log in into"
