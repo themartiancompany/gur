@@ -3737,6 +3737,82 @@ _gitlab_release_get() {
   done
 }
 
+_ip_get() {
+  local \
+    _api_rate_msg="${1}"
+  _ip="$(
+    echo \
+      "${_api_rate_msg}" |
+      sed \
+        "s/${_api_rate_limit_msg_start[*]}//g;
+        s/${_api_rate_limit_msg_end[*]}//g")"
+}
+
+_api_rate_limit_check() {
+  local \
+    _receipt="${1}" \
+    _receipt_msg \
+    _doc_uri \
+    _doc_dir \
+    _doc_file \
+    _api_rate_limit_msg_flag \
+    _api_rate_limit_msg_start=() \
+    _api_rate_limit_msg_end=() \
+    _ip \
+    _msg=()
+  _doc_dir="https://docs.github.com/rest"
+  _doc_path="overview/resources-in-the-rest-api"
+  _api_rate_limit_doc_uri="${_doc_dir}/${_doc_path}#rate-limiting"
+  _api_rate_limit_msg_start+=(
+    "API rate limit exceeded for"
+  )
+  _api_rate_limit_msg_end+=(
+    ". (But here's the good news:"
+    "Authenticated requests get a"
+    "higher rate limit."
+    "Check out the documentation"
+    "for more details.)"
+  )
+  _receipt_msg="$(
+    echo \
+      "${_receipt}" |
+      jq \
+        --raw-output \
+        ".message")"
+  _doc_uri="$(
+    echo \
+      "${_receipt}" |
+      jq \
+        --raw-output \
+        ".documentation_url")"
+  _api_rate_msg_flag="false"
+  if [[ "${_receipt_msg}" == "${_api_rate_limit_msg_start[*]}"* && 
+        "${_receipt_msg}" == *"${_api_rate_limit_msg_end[*]}" ]]; then
+    _api_rate_msg_flag="true"
+  fi
+  _api_rate_doc_uri_flag="false"
+  if [[ "${_doc_uri}" == "${_api_rate_limit_doc_uri}" ]]; then
+    _api_rate_doc_uri_flag="true"
+  fi
+  if [[ "${_api_rate_msg_flag}" == "true" || \
+        "${_api_rate_doc_uri_flag}" == "true" ]]; then
+    _ip="$(
+      _ip_get)"
+    _msg=(
+      "You've hit Github API limit."
+      "If you don't at least log in into"
+      "Github you can't access any"
+      "Gur information from the API."
+      "When you hit the limit"
+      "Github also calls you by your IP address."
+      "Yours is '${_ip}'."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
+}
+
 _releases_get() {
   local \
     _namespace="${1}" \
@@ -3777,6 +3853,8 @@ _releases_get() {
           -V)
   )
   if [[ "${_releases[*]}" == "" ]]; then
+    _api_rate_limit_check \
+      "${_releases_file_content}"
     _msg=(
       "Found no releases, content of"
       "'${_service}' releases file:"
