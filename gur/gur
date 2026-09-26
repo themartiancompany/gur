@@ -3041,7 +3041,8 @@ _github_release_assets_names_get() {
           "${_msg[*]}" \
           0
         echo \
-          "${_assets}"
+          "${_assets}" \
+          1>&2
         exit \
           1
       fi
@@ -3879,7 +3880,7 @@ _releases_get() {
     _api_rate_limit_check \
       "${_releases_file_content}"
     _msg=(
-      "Found no releases, content of"
+      "Found no releases, contents of"
       "'${_service}' releases file"
       "at '${_release_file}':"
     )
