@@ -3745,6 +3745,12 @@ _ip_get() {
   local \
     _api_rate_msg="${1}" \
     _cut1
+  echo ${_api_rate_limit_msg_start[*]}
+  echo
+  echo \
+    "${_api_rate_msg}" |
+    sed \
+      "s/${_api_rate_limit_msg_start[*]}//g"
   _cut1="$(
     echo \
       "${_api_rate_msg}" |
