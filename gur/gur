@@ -3846,9 +3846,26 @@ _releases_get() {
       _filter='.[].tagName'
     fi
   fi
+  if [[ ! -e "${_releases_file}" ]]; then
+    _msg=(
+      "Release file '${_release_file}'"
+      "has not been downloaded."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
   _releases_file_content="$(
     cat \
       "${_releases_file}")"
+  if [[ "${_releases_file_content}" == "" ]]; then
+    _msg=(
+      "Releases file is empty."
+    )
+    _msg_error \
+      "${_msg[*]}" \
+      1
+  fi
   _releases=( $(
     echo \
       "${_releases_file_content}" |
@@ -3863,13 +3880,15 @@ _releases_get() {
       "${_releases_file_content}"
     _msg=(
       "Found no releases, content of"
-      "'${_service}' releases file:"
+      "'${_service}' releases file"
+      "at '${_release_file}':"
     )
     _msg_error \
       "${_msg[*]}" \
       0
     echo \
-      "${_releases_file_content}"
+      "${_releases_file_content}" \
+      1>&2
     exit \
       1
   fi
