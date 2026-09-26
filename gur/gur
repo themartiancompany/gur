@@ -3801,7 +3801,8 @@ _api_rate_limit_check() {
   if [[ "${_api_rate_msg_flag}" == "true" || \
         "${_api_rate_doc_uri_flag}" == "true" ]]; then
     _ip="$(
-      _ip_get)"
+      _ip_get \
+        "${_receipt_msg}")"
     _msg=(
       "You've hit Github API limit."
       "If you don't at least log in into"
