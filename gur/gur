@@ -4871,12 +4871,14 @@ _repo_sync() {
     _repo_name="${4}" \
     _protocol \
     _sync_method \
+    _gur_lock_file \
     _index \
     _namespace_enabled \
     _push \
     _remote \
     _remote_exists \
     _tag \
+    _tags=() \
     _tags_push \
     _tags_amount \
     _url \
@@ -4990,13 +4992,24 @@ _repo_sync() {
         _msg_info \
           "${_msg[*]}"
       elif [[ "${_sync_method}" == "individual" ]]; then
-        _index=0
+        _gur_lock_file="${PWD}/.gur.lock}"
+        if [[ -e "${_gur_lock_file}" ]]; then
+          _index="$(
+            cat \
+              "${_gur_lock_file}")"
+        else
+          _index=0
+        fi
         _tags_amount="$(
           git \
             tag |
             wc \
               -l)"
-        for _tag in $(git tag); do
+        _tags+=( $(
+          git \
+            tag)
+        )
+        for _tag in ${_tags[@]:${_index}}; do
           _index=$((
             _index + 1))
           _msg=(
@@ -5008,7 +5021,12 @@ _repo_sync() {
           git \
             push \
               "${_remote}" \
-              "${_tag}"
+              "${_tag}" &
+          echo \
+            "${_index}" > \
+            "${_gur_lock_file}"
+          sleep \
+            0.5
         done
       else
         _msg=(
