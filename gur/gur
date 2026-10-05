@@ -6177,7 +6177,7 @@ _connection_check() {
     _ping="$(
       ping \
         "${_ping_opts[@]}" \
-        "https://${_service}.com" |
+        "${_service}.com" |
         head \
           -n \
             2 |
