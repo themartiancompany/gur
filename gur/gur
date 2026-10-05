@@ -1184,18 +1184,33 @@ _gitlab_namespaces_get() {
     _url
   _api="https://gitlab.com/api/v4"
   _url="${_api}/namespaces"
-  _token_private_get \
-    "gitlab.com" \
-    "${_user}" \
-    0
   _curl_opts+=(
     --silent
     --request
       "GET"
     -XGET
-    --header
-      "PRIVATE-TOKEN: ${_token}"
   )
+  _token_private_file_get \
+    "github.com" \
+    "${_namespace}" \
+    0
+  if [[ "${_token_private}" != "" ]]; then
+    _token="$(
+      cat \
+        "${_token_private}")"
+    _curl_opts+=(
+      --header
+        "PRIVATE-TOKEN: ${_token}"
+    )
+  else
+    _msg=(
+      "Seems function"
+      "'_token_private_file_get'"
+      "does not return '${_token_private}'."
+    )
+    _msg_info \
+      "${_msg[*]}"
+  fi
   _namespaces="$(
     curl \
       "${_curl_opts[@]}" \
@@ -6147,6 +6162,47 @@ _set_overrides() {
   fi
 }
 
+_connection_check() {
+  local \
+    _msg=() \
+    _ping \
+    _ping_opts=() \
+    _service
+  _ping_opts+=(
+    -C
+      1
+  )
+  for _service \
+    in "${git_services[@]}"; do
+    _ping="$(
+      ping \
+        "${_ping_opts[@]}" \
+        "https://${_git}.com" |
+        head \
+          -n \
+            2 |
+          head \
+            -n \
+              1)"
+      if [[ "${_ping}" != "64 bytes from "* ]]; then
+        _msg=(
+          "No connectivity for git service"
+          "'${_service}'."
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          1
+      else
+        _msg=(
+          "Service '${_service}'"
+          "online."
+        )
+        _msg_info \
+          "${_msg[*]}"
+      fi
+  done
+}
+
 
 # Show help usage, with an exit status.
 # $1: exit status number.
@@ -6410,6 +6466,7 @@ command_args=(
 )
 _set_overrides
 _show_config
+_connection_check
 app_opts=(
   "${git_services_amount}"
   "${target_namespaces_amount}"
