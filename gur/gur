@@ -6169,7 +6169,7 @@ _connection_check() {
     _ping_opts=() \
     _service
   _ping_opts+=(
-    -C
+    -c
       1
   )
   for _service \
