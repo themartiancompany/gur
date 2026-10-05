@@ -4912,6 +4912,7 @@ _repo_sync() {
     _sync_method="${6}"
   fi
   _async_type="constant-time-call"
+  _async_type="disabled"
   if (( 6 < "${#}" )); then
     _async_type="${7}"
   fi
@@ -5073,7 +5074,14 @@ _repo_sync() {
               "${_index}" > \
               "${_gur_lock_file}"
             sleep \
-              0.2
+              0.5
+          elif [[ "${_async_type}" == "disabled" ]]; then
+            _sync_out["${_index}"]="$(
+              git \
+                push \
+                  "${_remote}" \
+                  "${_tag}" \
+                2>"/dev/null")"
           else
             _msg=(
               "Unknown value"
