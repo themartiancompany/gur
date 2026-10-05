@@ -1194,7 +1194,7 @@ _gitlab_namespaces_get() {
     -XGET
   )
   _token_private_file_get \
-    "github.com" \
+    "gitlab.com" \
     "${_namespace}" \
     0
   if [[ "${_token_private}" != "" ]]; then
