@@ -4901,6 +4901,9 @@ _repo_sync() {
   if (( 7 < "${#}" )); then
     _silent_mode="${8}"
   fi
+  declare \
+    -A \
+    _sync_out
   _repo_new_failed=""
   if [[ "${_git_service}" == "gitlab" ]]; then
     _gitlab_namespace_enabled_get \
@@ -5035,17 +5038,18 @@ _repo_sync() {
             "${_msg[*]}"
           if [[ "${_async_type}" == "constant-time-call" ]]; then
             if [[ "${_silent_mode}" == "y" ]]; then
-              git \
-                push \
-                  "${_remote}" \
-                  "${_tag}" \
-                2>"/dev/null" &
+              _sync_out["${_index}"]="$(
+                git \
+                  push \
+                    "${_remote}" \
+                    "${_tag}" \
+                  2>"/dev/null" &)"
             elif [[ "${_silent_mode}" == "n" ]]; then
-              git \
-                push \
-                  "${_remote}" \
-                  "${_tag}" \
-                2>"/dev/null" &
+              _sync_out["${_index}"]="$(
+                git \
+                  push \
+                    "${_remote}" \
+                    "${_tag}" &)"
             fi
             echo \
               "${_index}" > \
