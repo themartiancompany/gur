@@ -5616,6 +5616,8 @@ _gitlab_auto_detect() {
 
 _git_services_check() {
   local \
+    _flag_allowed \
+    _service \
     _services_supported=()
   _services_supported+=(
     "github"
