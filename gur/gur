@@ -56,6 +56,7 @@ _global_variables() {
   repo_type=""
   repo_name=""
   retrieval_method=""
+  sync_method=""
   cache_dir=""
   http="https://github.com"
   mirror_description=(
@@ -4865,11 +4866,13 @@ _repo_sync() {
     _namespace="${2}" \
     _repo="${3}" \
     _repo_name="${4}" \
+    _sync_method="${5}" \
     _protocol \
     _namespace_enabled \
     _push \
     _remote \
     _remote_exists \
+    _tag \
     _tags_push \
     _url \
     _msg=()
@@ -4957,25 +4960,34 @@ _repo_sync() {
           "${_repo_name}" \
           "${_git_service}"
       fi
-      _tags_push="$(
-        git \
-          push \
-            "${_remote}" \
-            --tags \
-          2>&1 || \
-          true)"
-      if [[ "${_tags_push}" == "Everything up-to-date" ]]; then
-        _msg=(
-          "Tags for remote '${_remote}' already updated."
-        )
-      else
-        _msg=(
-          "Push tags:"
-            "${_tags_push}"
-        )
+      if [[ "${_sync_method}" == "batch" ]]; then
+        _tags_push="$(
+          git \
+            push \
+              "${_remote}" \
+              --tags \
+            2>&1 || \
+            true)"
+        if [[ "${_tags_push}" == "Everything up-to-date" ]]; then
+          _msg=(
+            "Tags for remote '${_remote}' already updated."
+          )
+        else
+          _msg=(
+            "Push tags:"
+              "${_tags_push}"
+          )
+        fi
+        _msg_info \
+          "${_msg[*]}"
+      elif [[ "${_sync_method}" == "individual" ]]; then
+        for _tag in $(git tag); do
+          git \
+            push \
+              "${_remote}" \
+              "${_tag}"
+        done
       fi
-      _msg_info \
-        "${_msg[*]}"
     fi
   fi || \
   true
@@ -4989,6 +5001,7 @@ _gur_sync() {
     _target_value="${4}" \
     _cache_dir="${5}" \
     _repo_type="${6}" \
+    _sync_method="${7}" \
     _namespace \
     _namespaces=() \
     _remote \
@@ -5030,7 +5043,8 @@ _gur_sync() {
         "${_namespace}" \
         "${_repo}" \
         "${_repo_name}" \
-        "ssh"
+        "ssh" \
+        "${_sync_method}"
     done
   done
 }
@@ -5425,13 +5439,14 @@ _gur() {
     _cache_dir="${4}" \
     _repo_type="${5}" \
     _retrieval_method="${6}" \
-    _target_platform="${7}" \
-    _target_arch="${8}" \
-    _target_revision="${9}" \
-    _repo_name="${10}" \
-    _target_command="${11}" \
-    _target_key="${12}" \
-    _target_value="${13}" \
+    _sync_method="${7}" \
+    _target_platform="${8}" \
+    _target_arch="${9}" \
+    _target_revision="${10}" \
+    _repo_name="${11}" \
+    _target_command="${12}" \
+    _target_key="${13}" \
+    _target_value="${14}" \
     _git_services=() \
     _target_namespaces=() \
     _repos=() \
@@ -5442,7 +5457,7 @@ _gur() {
     -A \
     "_bur_keys"
   shift \
-    13
+    14
   for _service \
     in $(seq \
            "${_git_services_amount}"); do
@@ -5498,7 +5513,8 @@ _gur() {
       "${_repo_name}" \
       "${_target_value}" \
       "${_cache_dir}" \
-      "${_repo_type}"
+      "${_repo_type}" \
+      "${_sync_method}"
   else
     _msg=(
       "Unknown command '${_target_command}'."
@@ -6121,6 +6137,10 @@ Usage:
                             command.
                             Default: ${target_revision}
 
+  sync options:
+     -s <sync-method>       For repository with a large history.
+                            It can be 'batch' or 'individual'.
+                            Default: ${sync_method}"
 
   application options:
      -d <retrieval-method>  Retrieval method for the Github.
@@ -6169,6 +6189,8 @@ _show_config() {
   _msg_info "                     Target key:   ${target_key}"
   _msg_info "                   Target value:   ${target_value}"
   _msg_info "                Extra arguments:   ${command_args[*]}"
+  _msg_info "                 Sync options:"
+  _msg_info "                    Sync method:   ${sync_method}"
   _msg_info "              Release options:"
   _msg_info "               Retrieval method:   ${retrieval_method}"
   _msg_info "                Target platform:   ${target_platform}"
@@ -6184,7 +6206,7 @@ _config_user_init \
 # shellcheck disable=SC2034
 while \
   getopts \
-    'P:A:m:N:M:t:r:d:W:cvh?' \
+    'P:A:m:N:M:t:r:d:s:W:cvh?' \
     arg; do
   case \
     "${arg}" in
@@ -6208,6 +6230,8 @@ while \
       override_target_revision="${OPTARG}" ;;
     d)
       override_retrieval_method="${OPTARG}" ;;
+    s)
+      override_sync_method="${OPTARG}" ;;
     W)
       override_cache_dir="${OPTARG}" ;;
     c)
@@ -6269,6 +6293,7 @@ app_opts=(
   "${cache_dir}"
   "${repo_type}"
   "${retrieval_method}"
+  "${sync_method}"
   "${target_platform}"
   "${target_arch}"
   "${target_revision}"
