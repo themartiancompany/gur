@@ -4994,6 +4994,11 @@ _repo_sync() {
       elif [[ "${_sync_method}" == "individual" ]]; then
         _gur_lock_file="${PWD}/.gur.lock}"
         if [[ -e "${_gur_lock_file}" ]]; then
+          _msg=(
+            "Found existing sync lock file."
+          )
+          _msg_info \
+            "${_msg[*]}"
           _index="$(
             cat \
               "${_gur_lock_file}")"
@@ -5028,6 +5033,8 @@ _repo_sync() {
           sleep \
             0.5
         done
+        rm \
+          "${_gur_lock_file}"
       else
         _msg=(
           "Unknown synchronization method"
