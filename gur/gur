@@ -5043,13 +5043,13 @@ _repo_sync() {
                   push \
                     "${_remote}" \
                     "${_tag}" \
-                  2>"/dev/null" &)"
+                  2>"/dev/null")" &
             elif [[ "${_silent_mode}" == "n" ]]; then
               _sync_out["${_index}"]="$(
                 git \
                   push \
                     "${_remote}" \
-                    "${_tag}" &)"
+                    "${_tag}")" &
             fi
             echo \
               "${_index}" > \
