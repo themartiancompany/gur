@@ -6192,9 +6192,8 @@ _connection_check() {
           "No connectivity for git service"
           "'${_service}':"
         )
-        _msg_error \
-          "${_msg[*]}" \
-          0
+        _msg_warning \
+          "${_msg[*]}"
         echo \
           "${_ping}" \
           1>&2
