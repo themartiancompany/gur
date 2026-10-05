@@ -5005,7 +5005,7 @@ _repo_sync() {
         _msg_info \
           "${_msg[*]}"
       elif [[ "${_sync_method}" == "individual" ]]; then
-        _gur_lock_file="${PWD}/.gur.lock}"
+        _gur_lock_file="${PWD}/.gur.lock"
         if [[ -e "${_gur_lock_file}" ]]; then
           _msg=(
             "Found existing sync lock file."
