@@ -4871,6 +4871,8 @@ _repo_sync() {
     _repo_name="${4}" \
     _protocol \
     _sync_method \
+    _async_type \
+    _silent_mode \
     _gur_lock_file \
     _index \
     _namespace_enabled \
@@ -4890,6 +4892,14 @@ _repo_sync() {
   _sync_method="batch"
   if (( 5 < "${#}" )); then
     _sync_method="${6}"
+  fi
+  _async_type="constant-time-call"
+  if (( 6 < "${#}" )); then
+    _async_type="${7}"
+  fi
+  _silent_mode="n"
+  if (( 7 < "${#}" )); then
+    _silent_mode="${8}"
   fi
   _repo_new_failed=""
   if [[ "${_git_service}" == "gitlab" ]]; then
@@ -5023,15 +5033,35 @@ _repo_sync() {
           )
           _msg_info \
             "${_msg[*]}"
-          git \
-            push \
-              "${_remote}" \
-              "${_tag}" &
-          echo \
-            "${_index}" > \
-            "${_gur_lock_file}"
-          sleep \
-            0.5
+          if [[ "${_async_type}" == "constant-time-call" ]]; then
+            if [[ "${_silent_mode}" == "y" ]]; then
+              git \
+                push \
+                  "${_remote}" \
+                  "${_tag}" \
+                2>"/dev/null" &
+            elif [[ "${_silent_mode}" == "n" ]]; then
+              git \
+                push \
+                  "${_remote}" \
+                  "${_tag}" \
+                2>"/dev/null" &
+            fi
+            echo \
+              "${_index}" > \
+              "${_gur_lock_file}"
+            sleep \
+              0.5
+          else
+            _msg=(
+              "Unknown value"
+              "'${_async_type}' for"
+              "variable '_async_type'."
+            )
+            _msg_error \
+              "${_msg[*]}" \
+              1
+          fi
         done
         rm \
           "${_gur_lock_file}"
