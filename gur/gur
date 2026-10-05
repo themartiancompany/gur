@@ -126,6 +126,9 @@ _requirements() {
   _check_cmd \
     'jq'
   _check_cmd \
+    "ping" \
+    "iputils"
+  _check_cmd \
     "platform-get" \
     "reallymakepkg"
   _check_cmd \
@@ -6181,16 +6184,21 @@ _connection_check() {
         head \
           -n \
             2 |
-          head \
+          tail \
             -n \
               1)"
       if [[ "${_ping}" != "64 bytes from "* ]]; then
         _msg=(
           "No connectivity for git service"
-          "'${_service}'."
+          "'${_service}':"
         )
         _msg_error \
           "${_msg[*]}" \
+          0
+        echo \
+          "${_ping}" \
+          1>&2
+        exit \
           1
       else
         _msg=(
