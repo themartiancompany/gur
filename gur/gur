@@ -5073,7 +5073,7 @@ _repo_sync() {
               "${_index}" > \
               "${_gur_lock_file}"
             sleep \
-              0.3
+              0.2
           else
             _msg=(
               "Unknown value"
