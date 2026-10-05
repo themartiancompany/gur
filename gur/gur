@@ -6205,8 +6205,8 @@ _connection_check() {
         echo \
           "${_ping}" \
           1>&2
-        exit \
-          1
+        # exit \
+        #   1
       else
         _msg=(
           "Service '${_service}'"
