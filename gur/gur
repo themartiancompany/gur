@@ -139,6 +139,9 @@ _requirements() {
     "coreutils"
   _check_cmd \
     "unzip"
+  _check_cmd \
+    "wc" \
+    "coreutils"
 }
 
 _get_conf_dir_path() {
@@ -4866,19 +4869,25 @@ _repo_sync() {
     _namespace="${2}" \
     _repo="${3}" \
     _repo_name="${4}" \
-    _sync_method="${5}" \
     _protocol \
+    _sync_method \
+    _index \
     _namespace_enabled \
     _push \
     _remote \
     _remote_exists \
     _tag \
     _tags_push \
+    _tags_amount \
     _url \
     _msg=()
   _protocol="ssh"
   if (( 4 < "${#}" )); then
     _protocol="${5}"
+  fi
+  _sync_method="batch"
+  if (( 5 < "${#}" )); then
+    _sync_method="${6}"
   fi
   _repo_new_failed=""
   if [[ "${_git_service}" == "gitlab" ]]; then
@@ -4981,12 +4990,34 @@ _repo_sync() {
         _msg_info \
           "${_msg[*]}"
       elif [[ "${_sync_method}" == "individual" ]]; then
+        _index=0
+        _tags_amount="$(
+          git \
+            tag |
+            wc \
+              -l)"
         for _tag in $(git tag); do
+          _index=$((
+            _index + 1))
+          _msg=(
+            "Pushing tag '${_tag}'"
+            "('${_index}' of '${_tags_amount}')"
+          )
+          _msg_info \
+            "${_msg[*]}"
           git \
             push \
               "${_remote}" \
               "${_tag}"
         done
+      else
+        _msg=(
+          "Unknown synchronization method"
+          "'${_sync_method}'."
+        )
+        _msg_error \
+          "${_msg[*]}" \
+          1
       fi
     fi
   fi || \
@@ -5583,6 +5614,33 @@ _gitlab_auto_detect() {
   fi
 }
 
+_git_services_check() {
+  local \
+    _services_supported=()
+  _services_supported+=(
+    "github"
+    "gitlab"
+  )
+  _flag_allowed="false"
+  for _service \
+    in "${git_services[@]}"; do
+    if [[ " ${git_services[*]} " == *" ${_service} "* ]]; then
+      _flag_allowed="true"
+    fi
+  done
+  if [[ "${_flag_allowed}" == "false" ]]; then
+    _msg=(
+      "One of these services"
+      "is unsupported:"
+        "'${git_services[*]}'."
+      "Supported services:"
+        "'${_services_supported[*]}'."
+    )
+    _msg_warning \
+      "${_msg[*]}"
+  fi
+}
+
 _git_services_auto_detect() {
   local \
     _service \
@@ -5597,6 +5655,7 @@ _git_services_auto_detect() {
     done
   fi
   git_services_amount="${#git_services[@]}"
+  _git_services_check
 }
 
 _github_accounts_get() {
@@ -6017,6 +6076,10 @@ _set_overrides() {
     "target" \
     "platform" \
     "$(platform-get)"
+  _set_override \
+    "sync" \
+    "method" \
+    "batch"
   if [[ "${_display_help}" == "true" ]]; then
     _usage \
       1
