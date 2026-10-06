@@ -6204,7 +6204,7 @@ _connection_check() {
           "${_msg[*]}"
         echo \
           "${_ping}" \
-          1>&2
+          1>2
         # exit \
         #   1
       else
