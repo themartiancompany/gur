@@ -117,10 +117,18 @@ _requirements() {
   _check_cmd \
     "curl"
   _check_cmd \
+    "head" \
+    "coreutils"
+  _check_cmd \
     "evm-gpg" \
     "evm-gnupg"
   _check_cmd \
+    'find' \
+    "findutils"
+  _check_cmd \
     'gl-dl'
+  _check_cmd \
+    'grep'
   _check_cmd \
     'python'
   _check_cmd \
