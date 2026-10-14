@@ -3919,6 +3919,8 @@ _releases_get() {
   if [[ "${_releases[*]}" == "" ]]; then
     _api_rate_limit_check \
       "${_releases_file_content}"
+    # _not_found_check \
+    #   ""
     _msg=(
       "Found no releases, contents of"
       "'${_service}' releases file"
@@ -5084,12 +5086,24 @@ _repo_sync() {
             sleep \
               0.5
           elif [[ "${_async_type}" == "disabled" ]]; then
-            _sync_out["${_index}"]="$(
-              git \
-                push \
-                  "${_remote}" \
-                  "${_tag}" \
-                2>"/dev/null")"
+            if [[ "${_silent_mode}" == "y" ]]; then
+              _sync_out["${_index}"]="$(
+                git \
+                  push \
+                    "${_remote}" \
+                    "${_tag}" \
+                  2>"/dev/null")"
+            elif [[ "${_silent_mode}" == "n" ]]; then
+              _sync_out["${_index}"]="$(
+                git \
+                  push \
+                    "${_remote}" \
+                    "${_tag}")"
+            fi
+            echo \
+              "${_index}" > \
+              "${_gur_lock_file}"
+
           else
             _msg=(
               "Unknown value"
